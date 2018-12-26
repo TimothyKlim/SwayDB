@@ -33,39 +33,40 @@ object Get {
     import keyOrder._
 
     def returnRangeValue(current: Value): Try[Option[KeyValue.ReadOnly.Put]] =
-      current match {
-        case current @ Value.Remove(currentDeadline) =>
-          if (current.hasTimeLeft())
-            getFromNextLevel(key) map {
-              case Some(next) =>
-                currentDeadline.map(next.updateDeadline) orElse Some(next)
-
-              case None =>
-                None
-            }
-          else
-            TryUtil.successNone
-
-        case current: Value.Put =>
-
-          if (current.hasTimeLeft())
-            Success(Some(Memory.Put(key, current.value, current.deadline)))
-          else
-            TryUtil.successNone
-
-        case current: Value.Update =>
-          if (current.hasTimeLeft())
-            getFromNextLevel(key) map {
-              case Some(next) =>
-                Some(Memory.Put(key, current.value, current.deadline orElse next.deadline))
-
-              case None =>
-                None
-            }
-          else
-            TryUtil.successNone
-
-      }
+//      current match {
+//        case current @ Value.Remove(currentDeadline) =>
+//          if (current.hasTimeLeft())
+//            getFromNextLevel(key) map {
+//              case Some(next) =>
+//                currentDeadline.map(next.updateDeadline) orElse Some(next)
+//
+//              case None =>
+//                None
+//            }
+//          else
+//            TryUtil.successNone
+//
+//        case current: Value.Put =>
+//
+//          if (current.hasTimeLeft())
+//            Success(Some(Memory.Put(key, current.value, current.deadline)))
+//          else
+//            TryUtil.successNone
+//
+//        case current: Value.Update =>
+//          if (current.hasTimeLeft())
+//            getFromNextLevel(key) map {
+//              case Some(next) =>
+//                Some(Memory.Put(key, current.value, current.deadline orElse next.deadline))
+//
+//              case None =>
+//                None
+//            }
+//          else
+//            TryUtil.successNone
+//
+//      }
+    ???
 
     getFromCurrentLevel(key) flatMap {
       case Some(current) =>

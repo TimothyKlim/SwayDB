@@ -212,7 +212,7 @@ sealed trait LevelZeroSpec extends TestBase with MockFactory with Benchmark {
       val keyValues = randomIntKeyStringValues(keyValuesCount)
       keyValues foreach {
         keyValue =>
-          zero.put(keyValue.key, keyValue.getOrFetchValue.assertGetOpt).assertGet
+          zero.put(keyValue.key, keyValue.value).assertGet
       }
 
       assertGet(keyValues, zero)
@@ -249,7 +249,7 @@ sealed trait LevelZeroSpec extends TestBase with MockFactory with Benchmark {
       val keyValues = randomIntKeyStringValues(keyValuesCount)
       keyValues foreach {
         keyValue =>
-          zero.put(keyValue.key, keyValue.getOrFetchValue.assertGetOpt).assertGet
+          zero.put(keyValue.key, keyValue.value).assertGet
       }
       eventual {
         zero.sizeOfSegments should be > 1L

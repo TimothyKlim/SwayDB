@@ -26,7 +26,7 @@ import swaydb.core.TestLimitQueues._
 import swaydb.core.data.{KeyValue, Memory, Persistent, Transient}
 import swaydb.core.group.compression.data.{GroupGroupingStrategyInternal, KeyValueGroupingStrategyInternal}
 import swaydb.core.queue.KeyValueLimiter
-import swaydb.core.segment.format.one.{SegmentReader, SegmentWriter}
+import swaydb.core.segment.format.a.{SegmentReader, SegmentWriter}
 import swaydb.core.util.Benchmark
 import swaydb.core.util.CollectionUtil._
 import swaydb.data.slice.Slice

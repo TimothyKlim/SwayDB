@@ -37,6 +37,7 @@ object TryUtil {
   val successZero = Success(0)
   val successEmptyBytes = Success(Slice.emptyBytes)
   val successNoneTime = Success(None)
+  val successEmptySeqBytes = Success(Seq.empty[Slice[Byte]])
 
   object Catch {
     def apply[T](f: => Try[T]): Try[T] =

@@ -161,7 +161,7 @@ private[swaydb] object MapEntry {
     val hasUpdate: Boolean = serializer.isUpdate
     val hasRemoveDeadline: Boolean =
       value match {
-        case Memory.Remove(_, Some(_)) => true
+        case Memory.Remove(_, _, Some(_)) => true
         case _ => false
       }
 

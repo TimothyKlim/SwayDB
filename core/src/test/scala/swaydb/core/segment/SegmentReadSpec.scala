@@ -30,7 +30,7 @@ import swaydb.core.data._
 import swaydb.core.group.compression.data.KeyValueGroupingStrategyInternal
 import swaydb.core.map.serializer.RangeValueSerializers._
 import swaydb.core.segment.SegmentException.SegmentCorruptionException
-import swaydb.core.segment.format.one.SegmentWriter
+import swaydb.core.segment.format.a.SegmentWriter
 import swaydb.data.segment.MaxKey.{Fixed, Range}
 import swaydb.data.slice.Slice
 import swaydb.data.order.KeyOrder

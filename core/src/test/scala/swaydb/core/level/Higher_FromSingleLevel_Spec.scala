@@ -20,16 +20,15 @@
 package swaydb.core.level
 
 import org.scalamock.scalatest.MockFactory
+import scala.concurrent.duration._
 import swaydb.core.TestBase
 import swaydb.core.data.{Memory, Value}
 import swaydb.core.group.compression.data.KeyValueGroupingStrategyInternal
 import swaydb.core.util.Benchmark
-import swaydb.data.slice.Slice
 import swaydb.data.order.KeyOrder
+import swaydb.data.slice.Slice
 import swaydb.serializers.Default._
 import swaydb.serializers._
-
-import scala.concurrent.duration._
 
 //@formatter:off
 class Higher_FromSingleLevel_Spec0 extends Higher_FromSingleLevel_Spec

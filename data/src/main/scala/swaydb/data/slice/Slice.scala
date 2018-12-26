@@ -47,6 +47,8 @@ object Slice {
 
   val emptySeqBytes = Seq.empty[Slice[Byte]]
 
+  val zeroUnsignedInt = Slice.writeIntUnsigned(0)
+
   def fill[T: ClassTag](length: Int)(elem: => T): Slice[T] =
     new Slice(Array.fill(length)(elem), fromOffset = 0, toOffset = if (length == 0) -1 else length - 1, length)
 
@@ -195,7 +197,7 @@ object Slice {
       slice
     }
 
-    def readIntSigned(int: Int): Try[Int] =
+    def readIntSigned(): Try[Int] =
       ByteUtil.readSignedInt(slice)
 
     def addIntUnsigned(int: Int): Slice[Byte] = {

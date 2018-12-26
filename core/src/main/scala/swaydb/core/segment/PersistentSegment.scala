@@ -29,7 +29,7 @@ import swaydb.core.io.file.DBFile
 import swaydb.core.io.reader.Reader
 import swaydb.core.level.PathsDistributor
 import swaydb.core.queue.KeyValueLimiter
-import swaydb.core.segment.format.one.{SegmentFooter, SegmentReader}
+import swaydb.core.segment.format.a.{SegmentFooter, SegmentReader}
 import swaydb.core.segment.merge.SegmentMerger
 import swaydb.core.util.TryUtil._
 import swaydb.core.util._

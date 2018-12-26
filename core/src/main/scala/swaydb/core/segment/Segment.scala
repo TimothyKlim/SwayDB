@@ -30,7 +30,7 @@ import swaydb.core.io.reader.Reader
 import swaydb.core.level.PathsDistributor
 import swaydb.core.map.Map
 import swaydb.core.queue.KeyValueLimiter
-import swaydb.core.segment.format.one.{SegmentReader, SegmentWriter}
+import swaydb.core.segment.format.a.{SegmentReader, SegmentWriter}
 import swaydb.core.segment.merge.SegmentMerger
 import swaydb.core.util.CollectionUtil._
 import swaydb.core.util.PipeOps._
@@ -115,62 +115,56 @@ private[core] object Segment extends LazyLogging {
             Segment.getNearestDeadline(currentNearestDeadline, keyValue)
 
           case put: Transient.Put =>
-            keyValue.getOrFetchValue flatMap {
-              value =>
-                val unslicedValue = value.map(_.unslice())
-                unslicedValue match {
-                  case Some(value) if value.nonEmpty =>
-                    skipList.put(
-                      keyUnsliced,
-                      Memory.Put(
-                        key = keyUnsliced,
-                        value = Some(value.unslice()),
-                        deadline = put.deadline
-                      )
-                    )
+            val unslicedValue = put.value.map(_.unslice())
+            unslicedValue match {
+              case Some(value) if value.nonEmpty =>
+                skipList.put(
+                  keyUnsliced,
+                  Memory.Put(
+                    key = keyUnsliced,
+                    value = Some(value.unslice()),
+                    deadline = put.deadline
+                  )
+                )
 
-                  case _ =>
-                    skipList.put(
-                      keyUnsliced,
-                      Memory.Put(
-                        key = keyUnsliced,
-                        value = None,
-                        deadline = put.deadline
-                      )
-                    )
-                }
-                bloomFilter.foreach(_ add keyUnsliced)
-                Segment.getNearestDeadline(currentNearestDeadline, keyValue)
+              case _ =>
+                skipList.put(
+                  keyUnsliced,
+                  Memory.Put(
+                    key = keyUnsliced,
+                    value = None,
+                    deadline = put.deadline
+                  )
+                )
             }
+            bloomFilter.foreach(_ add keyUnsliced)
+            Segment.getNearestDeadline(currentNearestDeadline, keyValue)
 
           case update: Transient.Update =>
-            keyValue.getOrFetchValue flatMap {
-              value =>
-                val unslicedValue = value.map(_.unslice())
-                unslicedValue match {
-                  case Some(value) if value.nonEmpty =>
-                    skipList.put(
-                      keyUnsliced,
-                      Memory.Update(
-                        key = keyUnsliced,
-                        value = Some(value.unslice()),
-                        deadline = update.deadline
-                      )
-                    )
+            val unslicedValue = update.value.map(_.unslice())
+            unslicedValue match {
+              case Some(value) if value.nonEmpty =>
+                skipList.put(
+                  keyUnsliced,
+                  Memory.Update(
+                    key = keyUnsliced,
+                    value = Some(value.unslice()),
+                    deadline = update.deadline
+                  )
+                )
 
-                  case _ =>
-                    skipList.put(
-                      keyUnsliced,
-                      Memory.Update(
-                        key = keyUnsliced,
-                        value = None,
-                        deadline = update.deadline
-                      )
-                    )
-                }
-                bloomFilter.foreach(_ add keyUnsliced)
-                Segment.getNearestDeadline(currentNearestDeadline, keyValue)
+              case _ =>
+                skipList.put(
+                  keyUnsliced,
+                  Memory.Update(
+                    key = keyUnsliced,
+                    value = None,
+                    deadline = update.deadline
+                  )
+                )
             }
+            bloomFilter.foreach(_ add keyUnsliced)
+            Segment.getNearestDeadline(currentNearestDeadline, keyValue)
 
           case range: KeyValue.WriteOnly.Range =>
             range.fetchFromAndRangeValue flatMap {
@@ -753,7 +747,13 @@ private[core] object Segment extends LazyLogging {
   def getNearestDeadline(previous: Option[Deadline],
                          keyValue: KeyValue.ReadOnly): Try[Option[Deadline]] =
     keyValue match {
-      case readOnly: KeyValue.ReadOnly.Fixed =>
+      case readOnly: KeyValue.ReadOnly.Put =>
+        Try(getNearestDeadline(previous, readOnly.deadline))
+
+      case readOnly: KeyValue.ReadOnly.Remove =>
+        Try(getNearestDeadline(previous, readOnly.deadline))
+
+      case readOnly: KeyValue.ReadOnly.Update =>
         Try(getNearestDeadline(previous, readOnly.deadline))
 
       case range: KeyValue.ReadOnly.Range =>

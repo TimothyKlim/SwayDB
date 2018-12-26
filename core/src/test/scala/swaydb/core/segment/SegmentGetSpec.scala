@@ -234,7 +234,9 @@ sealed trait SegmentGetSpec extends TestBase with ScalaFutures with PrivateMetho
               //if it's a range, toKey should also be unsliced.
               range.toKey.underlyingArraySize shouldBe keyValues.find(_.key == range.fromKey).assertGet.key.toArray.length
             case _ =>
-              gotFromCache.getOrFetchValue.assertGetOpt.map(_.underlyingArraySize) shouldBe keyValue.getOrFetchValue.assertGetOpt.map(_.toArray.length)
+//              gotFromCache.value.map(_.underlyingArraySize) shouldBe keyValue.value.map(_.toArray.length)
+
+              ???
 
           }
       }
@@ -260,7 +262,8 @@ sealed trait SegmentGetSpec extends TestBase with ScalaFutures with PrivateMetho
 
       segment.close.assertGet
 
-      keyValue.getOrFetchValue.assertGet shouldBe (2: Slice[Byte])
+//      keyValue.getOrFetchValue.assertGet shouldBe (2: Slice[Byte])
+      ???
 
     }
 
@@ -288,7 +291,8 @@ sealed trait SegmentGetSpec extends TestBase with ScalaFutures with PrivateMetho
             case range: KeyValue.ReadOnly.Range =>
               range.fetchFromAndRangeValue.assertGet
             case _ =>
-              readKeyValue.getOrFetchValue.assertGetOpt shouldBe keyValue.getOrFetchValue.assertGetOpt
+//              readKeyValue.getOrFetchValue.assertGetOpt shouldBe keyValue.value
+              ???
           }
 
           //value is now set

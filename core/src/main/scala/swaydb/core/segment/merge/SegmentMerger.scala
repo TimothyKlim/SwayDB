@@ -144,7 +144,7 @@ private[core] object SegmentMerger extends LazyLogging {
     merge(
       newKeyValues = newKeyValues,
       oldKeyValues = oldKeyValues,
-      minSegmentSize = 100000.gb,
+      minSegmentSize = Int.MaxValue,
       isLastLevel = false,
       forInMemory = true,
       bloomFilterFalsePositiveRate = 0.1,
@@ -240,12 +240,13 @@ private[core] object SegmentMerger extends LazyLogging {
                 Failure(exception)
             }
           else
-            applyValue(newKeyValue, oldKeyValue, hasTimeLeftAtLeast) flatMap add match {
-              case Success(_) =>
-                doMerge(newKeyValues.dropHead(), oldKeyValues.dropHead())
-              case Failure(exception) =>
-                Failure(exception)
-            }
+          //            applyValue(newKeyValue, oldKeyValue, hasTimeLeftAtLeast) flatMap add match {
+          //              case Success(_) =>
+          //                doMerge(newKeyValues.dropHead(), oldKeyValues.dropHead())
+          //              case Failure(exception) =>
+          //                Failure(exception)
+          //            }
+            ???
 
         /**
           * When the input is an overwrite key-value and the existing is a range key-value.
@@ -616,24 +617,25 @@ private[core] object SegmentMerger extends LazyLogging {
             }
           else
           //Open the Group and merge.
-            newRangeKeyValue.fetchFromAndRangeValue match {
-              //Cases when the Remove range completely overlaps the group and there is no time set for
-              //both fromValue & RangeValue then there is no need to open the group. Simply remove the Group.
-              case Success((None | Some(Value.Remove(None)), Value.Remove(None))) if newRangeKeyValue.fromKey <= oldGroupKeyValue.minKey && oldGroupKeyValue.maxKey.maxKey < newRangeKeyValue.toKey =>
-                doMerge(newKeyValues, oldKeyValues.dropHead())
-
-              case Success(_) =>
-                oldGroupKeyValue.segmentCache.getAll() match {
-                  case Success(oldGroupKeyValues) =>
-                    doMerge(newKeyValues, MergeList(oldGroupKeyValues) append oldKeyValues.dropHead())
-
-                  case Failure(exception) =>
-                    Failure(exception)
-                }
-
-              case Failure(exception) =>
-                Failure(exception)
-            }
+          //            newRangeKeyValue.fetchFromAndRangeValue match {
+          //              //Cases when the Remove range completely overlaps the group and there is no time set for
+          //              //both fromValue & RangeValue then there is no need to open the group. Simply remove the Group.
+          //              case Success((None | Some(Value.Remove(_, None)), Value.Remove(_, None))) if newRangeKeyValue.fromKey <= oldGroupKeyValue.minKey && oldGroupKeyValue.maxKey.maxKey < newRangeKeyValue.toKey =>
+          //                doMerge(newKeyValues, oldKeyValues.dropHead())
+          //
+          //              case Success(_) =>
+          //                oldGroupKeyValue.segmentCache.getAll() match {
+          //                  case Success(oldGroupKeyValues) =>
+          //                    doMerge(newKeyValues, MergeList(oldGroupKeyValues) append oldKeyValues.dropHead())
+          //
+          //                  case Failure(exception) =>
+          //                    Failure(exception)
+          //                }
+          //
+          //              case Failure(exception) =>
+          //                Failure(exception)
+          //            }
+            ???
 
         /**
           * When the input is a Group and the existing is a Range key-value.

@@ -32,10 +32,12 @@ import scala.util.Random
 
 trait TestData extends TryAssert {
 
-  /**
-    * Sequential time bytes generator.
-    */
-  private val timeCount = new AtomicLong(0)
+  //generate random size of sequence bytes.
+  def randomSeqBytes(max: Int = 10): Seq[Slice[Byte]] =
+    (0 to randomIntMax(max)) map {
+      i =>
+        Slice.writeIntUnsigned(i)
+    }
 
   def randomStringOption: Option[Slice[Byte]] =
     if (Random.nextBoolean())
@@ -71,7 +73,12 @@ trait TestData extends TryAssert {
     else if (Random.nextBoolean())
       Memory.Remove(key, deadline)
     else
-      Memory.Update(key, value, deadline)
+      randomUpdateKeyValue(key, value, deadline)
+
+  def randomUpdateKeyValue(key: Slice[Byte],
+                           value: Option[Slice[Byte]] = randomStringOption,
+                           deadline: Option[Deadline] = randomDeadlineOption): Memory.Update =
+    Memory.Update(key, value, deadline)
 
   def randomCompression(minCompressionPercentage: Double = Double.MinValue): CompressionInternal =
     CompressionInternal.random(minCompressionPercentage = minCompressionPercentage)
@@ -180,8 +187,7 @@ trait TestData extends TryAssert {
                              addRandomRanges: Boolean = Random.nextBoolean(),
                              addRandomRemoveDeadlines: Boolean = Random.nextBoolean(),
                              addRandomPutDeadlines: Boolean = Random.nextBoolean(),
-                             addRandomGroups: Boolean = Random.nextBoolean(),
-                             addRandomTimes: Boolean = Random.nextBoolean()): Slice[KeyValue.WriteOnly] =
+                             addRandomGroups: Boolean = Random.nextBoolean()): Slice[KeyValue.WriteOnly] =
     randomIntKeyValues(
       count = count,
       startId = startId,
@@ -191,8 +197,7 @@ trait TestData extends TryAssert {
       addRandomRanges = addRandomRanges,
       addRandomRemoveDeadlines = addRandomRemoveDeadlines,
       addRandomPutDeadlines = addRandomPutDeadlines,
-      addRandomGroups = addRandomGroups,
-      addRandomTimes = addRandomTimes
+      addRandomGroups = addRandomGroups
     )
 
   def groupsOnly(count: Int = 5,
@@ -215,8 +220,7 @@ trait TestData extends TryAssert {
                          addRandomRemoveDeadlines: Boolean = false,
                          addRandomPutDeadlines: Boolean = false,
                          addRandomRanges: Boolean = false,
-                         addRandomGroups: Boolean = false,
-                         addRandomTimes: Boolean = false): Slice[KeyValue.WriteOnly] = {
+                         addRandomGroups: Boolean = false): Slice[KeyValue.WriteOnly] = {
     //    println(
     //      s"""
     //        |nonValue : $nonValue
@@ -239,16 +243,19 @@ trait TestData extends TryAssert {
           key,
           previous = slice.lastOption,
           deadline = if (addRandomPutDeadlines && Random.nextBoolean()) Some(10.seconds.fromNow) else None,
-          compressDuplicateValues = true
+          compressDuplicateValues = true,
+          applies = Slice.emptySeqBytes,
+          value = None,
+          falsePositiveRate = 0.1
         )
         key = key + 1
       } else if ((addRandomRemoves || addRandomRanges || addRandomGroups) && Random.nextBoolean()) {
         if (addRandomRemoves) {
           slice add Transient.Remove(
             key: Slice[Byte],
-            0.1,
+            falsePositiveRate = 0.1,
             previous = slice.lastOption,
-            deadline = if (addRandomRemoveDeadlines && Random.nextBoolean()) Some(10.seconds.fromNow) else None
+            if (addRandomRemoveDeadlines && Random.nextBoolean()) Some(10.seconds.fromNow) else None
           )
 
           key = key + 1
@@ -282,7 +289,6 @@ trait TestData extends TryAssert {
               addRandomRemoveDeadlines = addRandomRemoveDeadlines,
               addRandomPutDeadlines = addRandomPutDeadlines,
               addRandomRanges = addRandomRanges,
-              addRandomTimes = addRandomTimes,
               addRandomGroups = false //do not create more inner groups.
             )
 
@@ -300,6 +306,7 @@ trait TestData extends TryAssert {
           key = key: Slice[Byte],
           value = Some(key),
           falsePositiveRate = 0.1,
+          applies = Slice.emptySeqBytes,
           previous = slice.lastOption,
           compressDuplicateValues = true,
           deadline = if (addRandomPutDeadlines && Random.nextBoolean()) Some(10.seconds.fromNow) else None

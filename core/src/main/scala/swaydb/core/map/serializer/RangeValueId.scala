@@ -27,6 +27,7 @@ sealed trait RangeValueId {
   val id: Int
 }
 
+//Single
 case object RemoveRange extends RangeValueId {
   override val id: Int = 0
 }
@@ -39,28 +40,60 @@ case object UpdateRange extends RangeValueId {
   override val id: Int = 2
 }
 
-case object RemoveRemoveRange extends RangeValueId {
+case object ApplyRange extends RangeValueId {
   override val id: Int = 3
 }
 
-case object RemoveUpdateRange extends RangeValueId {
+//Remove
+case object RemoveRemoveRange extends RangeValueId {
   override val id: Int = 4
 }
 
-case object PutUpdateRange extends RangeValueId {
+case object RemoveUpdateRange extends RangeValueId {
   override val id: Int = 5
 }
 
-case object PutRemoveRange extends RangeValueId {
+case object RemoveApplyRange extends RangeValueId {
   override val id: Int = 6
 }
 
-case object UpdateRemoveRange extends RangeValueId {
+//Put
+case object PutUpdateRange extends RangeValueId {
   override val id: Int = 7
 }
 
-case object UpdateUpdateRange extends RangeValueId {
+case object PutRemoveRange extends RangeValueId {
   override val id: Int = 8
+}
+
+case object PutApplyRange extends RangeValueId {
+  override val id: Int = 9
+}
+
+//Update
+case object UpdateRemoveRange extends RangeValueId {
+  override val id: Int = 10
+}
+
+case object UpdateUpdateRange extends RangeValueId {
+  override val id: Int = 11
+}
+
+case object UpdateApplyRange extends RangeValueId {
+  override val id: Int = 12
+}
+
+//Apply
+case object ApplyApplyRange extends RangeValueId {
+  override val id: Int = 13
+}
+
+case object ApplyRemoveRange extends RangeValueId {
+  override val id: Int = 14
+}
+
+case object ApplyUpdateRange extends RangeValueId {
+  override val id: Int = 15
 }
 
 object RangeValueId {

@@ -77,7 +77,7 @@ sealed trait LevelZeroStressSpec extends TestBase with Benchmark {
           val key = keyValue.key.read[Int]
           if (key % 100000 == 0)
             println(s"PUT. Current written KeyValue : $key")
-          zero.put(keyValue.key, keyValue.getOrFetchValue.assertGetOpt).assertGet
+          zero.put(keyValue.key, keyValue.value).assertGet
       }
 
     def doGet =
@@ -86,7 +86,7 @@ sealed trait LevelZeroStressSpec extends TestBase with Benchmark {
           val key = keyValue.key.read[Int]
           if (key % 100000 == 0)
             println(s"GET. KeyValue : $key")
-          zero.get(keyValue.key).assertGet shouldBe keyValue.getOrFetchValue.assertGetOpt
+          zero.get(keyValue.key).assertGet shouldBe keyValue.value
       }
 
     def readLower =
@@ -97,7 +97,7 @@ sealed trait LevelZeroStressSpec extends TestBase with Benchmark {
           val expectedLower = keyValues(index - 1)
           val (key, value) = zero.lower(keyValues(index).key).assertGet
           key shouldBe expectedLower.key
-          value shouldBe expectedLower.getOrFetchValue.assertGetOpt
+          value shouldBe expectedLower.value
       }
 
     def readHigher =
@@ -108,7 +108,7 @@ sealed trait LevelZeroStressSpec extends TestBase with Benchmark {
           val expectedLower = keyValues(index + 1)
           val (key, value) = zero.higher(keyValues(index).key).assertGet
           key shouldBe expectedLower.key
-          value shouldBe expectedLower.getOrFetchValue.assertGetOpt
+          value shouldBe expectedLower.value
       }
 
     //Write all keys values to make sure that data is actually there.

@@ -19,13 +19,13 @@
 
 package swaydb.core.util
 
+import scala.collection.mutable.ListBuffer
+import scala.util.{Success, Try}
 import swaydb.core.data.KeyValue
 import swaydb.core.io.reader.Reader
-import swaydb.data.slice.Slice
+import swaydb.core.util.PipeOps._
+import swaydb.data.slice.{Reader, Slice}
 import swaydb.data.util.ByteUtil
-
-import scala.util.{Success, Try}
-import PipeOps._
 
 private[swaydb] object Bytes {
 
@@ -118,6 +118,12 @@ private[swaydb] object Bytes {
     size
   }
 
+  /**
+    * Returns the unsigned size of the int plus the int.
+    */
+  def sizeOfAndPlus(int: Int): Int =
+    sizeOf(int) + int
+
   def compressJoin(left: Slice[Byte],
                    right: Slice[Byte]): Slice[Byte] =
     compressJoin(left, right, Slice.emptyBytes)
@@ -187,15 +193,55 @@ private[swaydb] object Bytes {
           (left, right)
         }
     }
-}
 
-object Test extends App {
+  def sizeOf(bytes: Seq[Slice[Byte]]): Int =
+    bytes.foldLeft(0) {
+      case (size, bytes) =>
+        size + bytes.size + sizeOf(bytes.size)
+    }
 
-  (15000 to 100000) foreach {
-    i =>
-      if (Bytes.sizeOf(i) > 2) {
-        println(i)
-        System.exit(0)
+  def write(bytes: Seq[Slice[Byte]]): Slice[Byte] =
+    bytes
+      .foldLeft(Slice.create[Byte](sizeOf(bytes))) {
+        case (result, bytes) =>
+          result
+            .addIntUnsigned(bytes.size)
+            .addAll(bytes)
       }
-  }
+
+  //  def write(tuple: (Slice[Byte], Slice[Byte])): Slice[Byte] = {
+  //    val bytes = Slice.create[Byte](sizeOf())
+  //  }
+
+  def writeTo(bytes: Seq[Slice[Byte]])(to: Slice[Byte]): Unit =
+    bytes
+      .foreach {
+        bytes =>
+          to
+            .addIntUnsigned(bytes.size)
+            .addAll(bytes)
+      }
+
+  def readSeq(bytes: Slice[Byte]): Try[Seq[Slice[Byte]]] =
+    readSeq(Reader(bytes))
+
+  def readSeq(reader: Reader): Try[Seq[Slice[Byte]]] =
+    reader.foldLeftTry(ListBuffer.empty[Slice[Byte]]) {
+      case (result, reader) =>
+        reader.readIntUnsigned() flatMap {
+          size =>
+            reader.read(size) map {
+              bytes =>
+                result += bytes
+            }
+        }
+    }
+
+  def readTuple(reader: Reader): Try[(Slice[Byte], Slice[Byte])] =
+    for {
+      head <- reader.readIntUnsigned().flatMap(reader.read)
+      tail <- reader.readIntUnsigned().flatMap(reader.read)
+    } yield {
+      (head, tail)
+    }
 }

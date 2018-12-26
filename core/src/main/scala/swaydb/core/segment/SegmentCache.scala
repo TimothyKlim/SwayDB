@@ -25,8 +25,8 @@ import bloomfilter.mutable.BloomFilter
 import com.typesafe.scalalogging.LazyLogging
 import swaydb.core.data.{Persistent, _}
 import swaydb.core.queue.KeyValueLimiter
-import swaydb.core.segment.format.one.SegmentReader._
-import swaydb.core.segment.format.one.{KeyMatcher, SegmentFooter, SegmentReader}
+import swaydb.core.segment.format.a.SegmentReader._
+import swaydb.core.segment.format.a.{KeyMatcher, SegmentFooter, SegmentReader}
 import swaydb.core.util._
 import swaydb.data.segment.MaxKey
 import swaydb.data.segment.MaxKey.{Fixed, Range}

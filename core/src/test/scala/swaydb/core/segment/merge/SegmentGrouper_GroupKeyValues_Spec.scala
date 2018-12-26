@@ -22,7 +22,7 @@ package swaydb.core.segment.merge
 import swaydb.core.TestBase
 import swaydb.core.data.{KeyValue, Persistent}
 import swaydb.core.group.compression.data.KeyValueGroupingStrategyInternal
-import swaydb.core.segment.format.one.SegmentWriter
+import swaydb.core.segment.format.a.SegmentWriter
 import swaydb.data.slice.Slice
 import swaydb.data.util.StorageUnits._
 

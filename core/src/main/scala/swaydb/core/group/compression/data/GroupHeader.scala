@@ -20,7 +20,7 @@
 package swaydb.core.group.compression.data
 
 import swaydb.compression.DecompressorInternal
-import swaydb.core.segment.format.one.SegmentFooter
+import swaydb.core.segment.format.a.SegmentFooter
 
 private[core] case class ValueInfo(valuesDecompressor: DecompressorInternal,
                                    valuesDecompressedLength: Int,

@@ -29,7 +29,7 @@ import swaydb.core.io.file.DBFile
 import swaydb.core.level.zero.LevelZero
 import swaydb.core.level.{Level, LevelRef, TrashLevel}
 import swaydb.core.queue.{KeyValueLimiter, SegmentOpenLimiter}
-import swaydb.core.segment.format.one.entry.generators.GeneratorCallWarmUp
+import swaydb.core.segment.format.a.entry.generators.GeneratorCallWarmUp
 import swaydb.core.util.FileUtil._
 import swaydb.data.config._
 import swaydb.data.order.KeyOrder

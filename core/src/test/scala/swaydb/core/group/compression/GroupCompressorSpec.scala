@@ -97,10 +97,11 @@ class GroupCompressorSpec extends TestBase {
             expectedIndexCompressionUsed = indexCompression,
             expectedValueCompressionUsed =
               //if either a Range of if the value is not None, then the compression will be used.
-              if (keyValue.isInstanceOf[Memory.Range] || keyValue.getOrFetchValue.assertGetOpt.isDefined)
-                Some(valuesCompression)
-              else
-                None
+//              if (keyValue.isInstanceOf[Memory.Range] || keyValue.getOrFetchValue.assertGetOpt.isDefined)
+//                Some(valuesCompression)
+//              else
+//                None
+            ???
           )
         }
       }
@@ -144,7 +145,7 @@ class GroupCompressorSpec extends TestBase {
             expectedIndexCompressionUsed = indexCompression,
             expectedValueCompressionUsed =
               //if either a Range of if the value is not None, then the compression will be used.
-              if (keyValues.exists(keyValue => keyValue.isRange || keyValue.getOrFetchValue.assertGetOpt.isDefined))
+              if (keyValues.exists(keyValue => keyValue.isRange || keyValue.value.isDefined))
                 Some(valuesCompression)
               else
                 None
@@ -175,7 +176,7 @@ class GroupCompressorSpec extends TestBase {
             expectedIndexCompressionUsed = indexCompressions.last,
             expectedValueCompressionUsed =
               //if either a Range of if the value is not None, then the compression will be used.
-              if (keyValues.exists(keyValue => keyValue.isRange || keyValue.getOrFetchValue.assertGetOpt.isDefined))
+              if (keyValues.exists(keyValue => keyValue.isRange || keyValue.value.isDefined))
                 Some(valueCompressions.last)
               else
                 None
@@ -247,7 +248,7 @@ class GroupCompressorSpec extends TestBase {
             expectedIndexCompressionUsed = indexCompression,
             expectedValueCompressionUsed =
               //if either a Range of if the value is not None, then the compression will be used.
-              if (keyValues.exists(keyValue => keyValue.isRange || keyValue.getOrFetchValue.assertGetOpt.isDefined))
+              if (keyValues.exists(keyValue => keyValue.isRange || keyValue.value.isDefined))
                 Some(valueCompression)
               else
                 None
@@ -278,7 +279,7 @@ class GroupCompressorSpec extends TestBase {
             expectedIndexCompressionUsed = indexCompressions.last,
             expectedValueCompressionUsed =
               //if either a Range of if the value is not None, then the compression will be used.
-              if (keyValues.exists(keyValue => keyValue.isRange || keyValue.getOrFetchValue.assertGetOpt.isDefined))
+              if (keyValues.exists(keyValue => keyValue.isRange || keyValue.value.isDefined))
                 valueCompressions.lastOption
               else
                 None

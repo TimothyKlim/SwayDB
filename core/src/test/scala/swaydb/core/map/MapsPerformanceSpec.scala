@@ -48,7 +48,7 @@ class MapsPerformanceSpec extends TestBase with Benchmark {
         keyValues foreach {
           keyValue =>
             maps.write {
-              MapEntry.Put[Slice[Byte], Memory.Put](keyValue.key, Memory.Put(keyValue.key, keyValue.getOrFetchValue.assertGetOpt))(Level0PutWriter)
+              MapEntry.Put[Slice[Byte], Memory.Put](keyValue.key, Memory.Put(keyValue.key, keyValue.value))(Level0PutWriter)
             }.assertGet
         }
 
@@ -56,7 +56,7 @@ class MapsPerformanceSpec extends TestBase with Benchmark {
         keyValues foreach {
           keyValue =>
             maps.get(keyValue.key)
-          //            maps.get(keyValue.key).assertGet shouldBe ((ValueType.Add, keyValue.getOrFetchValue.assertGetOpt))
+          //            maps.get(keyValue.key).assertGet shouldBe ((ValueType.Add, keyValue.value))
         }
 
       val dir1 = IO.createDirectoryIfAbsent(testDir.resolve(1.toString))

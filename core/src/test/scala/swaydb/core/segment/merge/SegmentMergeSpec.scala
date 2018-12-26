@@ -31,7 +31,7 @@ import swaydb.serializers.Default._
 import swaydb.serializers._
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration._
-import swaydb.core.segment.format.one.entry.generators.GeneratorCallWarmUp
+import swaydb.core.segment.format.a.entry.generators.GeneratorCallWarmUp
 
 class SegmentMergeSpec extends TestBase {
 

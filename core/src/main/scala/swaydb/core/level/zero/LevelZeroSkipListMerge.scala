@@ -49,7 +49,8 @@ class LevelZeroSkipListMerge(val hasTimeLeftAtLeast: FiniteDuration) extends Ski
   def applyValue(newKeyValue: Memory.Fixed,
                  oldKeyValue: Memory.Fixed,
                  hasTimeLeftAtLeast: FiniteDuration): Memory.Fixed =
-    KeyValueMerger.applyValue(newKeyValue, oldKeyValue, hasTimeLeftAtLeast).get.asInstanceOf[Memory.Fixed]
+//    KeyValueMerger.applyValue(newKeyValue, oldKeyValue, hasTimeLeftAtLeast).get.asInstanceOf[Memory.Fixed]
+  ???
 
   /**
     * Inserts a [[Memory.Fixed]] key-value into skipList.
@@ -70,7 +71,7 @@ class LevelZeroSkipListMerge(val hasTimeLeftAtLeast: FiniteDuration) extends Ski
             //This should still be done properly.
             SegmentMerger.merge(insert, floorRange, hasTimeLeftAtLeast).reverse foreach {
               case transient: Transient =>
-                skipList.put(transient.key, transient.toMemoryResponse.get)
+                skipList.put(transient.key, transient.toMemoryResponse)
             }
 
           case _ =>
@@ -111,7 +112,7 @@ class LevelZeroSkipListMerge(val hasTimeLeftAtLeast: FiniteDuration) extends Ski
       //while inserting also clear any conflicting key-values that are not replaced by new inserts.
       mergedKeyValues.reverse.foldLeft(Option.empty[Slice[Byte]]) {
         case (previousInsertedKey, transient: Transient) =>
-          skipList.put(transient.key, transient.toMemoryResponse.get)
+          skipList.put(transient.key, transient.toMemoryResponse)
           //remove any entries that are greater than transient.key to the previously inserted entry.
           val toKey = previousInsertedKey.getOrElse(conflictingKeyValues.lastKey())
           if (transient.key < toKey)

@@ -56,14 +56,14 @@ class MapsStressSpec extends TestBase {
       def testWrite(maps: Maps[Slice[Byte], Memory.SegmentResponse]) = {
         keyValues foreach {
           keyValue =>
-            maps.write(MapEntry.Put(keyValue.key, Memory.Put(keyValue.key, keyValue.getOrFetchValue.assertGetOpt))).assertGet
+            maps.write(MapEntry.Put(keyValue.key, Memory.Put(keyValue.key, keyValue.value))).assertGet
         }
       }
 
       def testRead(maps: Maps[Slice[Byte], Memory.SegmentResponse]) = {
         keyValues foreach {
           keyValue =>
-            maps.get(keyValue.key).assertGet shouldBe Memory.Put(keyValue.key, keyValue.getOrFetchValue.assertGetOpt)
+            maps.get(keyValue.key).assertGet shouldBe Memory.Put(keyValue.key, keyValue.value)
         }
       }
 

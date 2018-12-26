@@ -55,7 +55,7 @@ class MapCodecSpec extends TestBase {
       val map = new ConcurrentSkipListMap[Slice[Byte], Memory.SegmentResponse](keyOrder)
       keyValues foreach {
         keyValue =>
-          map.put(keyValue.key, Memory.Put(keyValue.key, keyValue.getOrFetchValue.assertGetOpt))
+          map.put(keyValue.key, Memory.Put(keyValue.key, keyValue.value))
       }
 
       val bytes = MapCodec.write(map)
@@ -68,7 +68,7 @@ class MapCodecSpec extends TestBase {
       keyValues foreach {
         keyValue =>
           val value = readMap.get(keyValue.key)
-          value shouldBe Memory.Put(keyValue.key, keyValue.getOrFetchValue.assertGetOpt)
+          value shouldBe Memory.Put(keyValue.key, keyValue.value)
       }
     }
 
@@ -77,7 +77,7 @@ class MapCodecSpec extends TestBase {
       val map = new ConcurrentSkipListMap[Slice[Byte], Memory.SegmentResponse](keyOrder)
       keyValues foreach {
         keyValue =>
-          map.put(keyValue.key, Memory.Put(keyValue.key, keyValue.getOrFetchValue.assertGetOpt))
+          map.put(keyValue.key, Memory.Put(keyValue.key, keyValue.value))
       }
 
       def assertBytes(bytesWithEmpty: Slice[Byte]) = {
@@ -88,7 +88,7 @@ class MapCodecSpec extends TestBase {
         keyValues foreach {
           keyValue =>
             val value = readMap.get(keyValue.key)
-            value shouldBe Memory.Put(keyValue.key, keyValue.getOrFetchValue.assertGetOpt)
+            value shouldBe Memory.Put(keyValue.key, keyValue.value)
         }
       }
 
@@ -115,7 +115,7 @@ class MapCodecSpec extends TestBase {
         val map = new ConcurrentSkipListMap[Slice[Byte], Memory.SegmentResponse](keyOrder)
         keyValues foreach {
           keyValue =>
-            map.put(keyValue.key, Memory.Put(keyValue.key, keyValue.getOrFetchValue.assertGetOpt))
+            map.put(keyValue.key, Memory.Put(keyValue.key, keyValue.value))
         }
         map
       }
@@ -143,7 +143,7 @@ class MapCodecSpec extends TestBase {
       allKeyValues foreach {
         keyValue =>
           val value = map.get(keyValue.key)
-          value shouldBe Memory.Put(keyValue.key, keyValue.getOrFetchValue.assertGetOpt)
+          value shouldBe Memory.Put(keyValue.key, keyValue.value)
       }
 
       //corrupt bytes in bytes2 and read the bytes again. keyValues2 should not exist as it's key-values are corrupted.
@@ -157,7 +157,7 @@ class MapCodecSpec extends TestBase {
       keyValues1 foreach {
         keyValue =>
           val value = map.get(keyValue.key)
-          value shouldBe Memory.Put(keyValue.key, keyValue.getOrFetchValue.assertGetOpt)
+          value shouldBe Memory.Put(keyValue.key, keyValue.value)
       }
 
       //corrupt bytes of bytes1

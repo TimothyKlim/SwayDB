@@ -22,8 +22,11 @@ package swaydb.core.merge
 import org.scalatest.{Matchers, WordSpec}
 import swaydb.core.CommonAssertions
 import swaydb.core.data.Memory
+import swaydb.core.segment.merge.KeyValueMerger
 import swaydb.serializers.Default._
 import swaydb.serializers._
+import scala.concurrent.duration._
+import swaydb.core.data.KeyValue.ReadOnly
 
 class KeyValueMerger5_Put_Spec extends WordSpec with Matchers with CommonAssertions {
 
@@ -35,7 +38,11 @@ class KeyValueMerger5_Put_Spec extends WordSpec with Matchers with CommonAsserti
           val newKeyValue = Memory.Put(i, randomStringOption, randomDeadlineOption)
           val oldKeyValue = randomFixedKeyValue(i)
 
-          (newKeyValue, oldKeyValue).merge shouldBe newKeyValue
+          KeyValueMerger[ReadOnly.Fixed, ReadOnly.Fixed](
+            newKeyValue = newKeyValue,
+            oldKeyValue = oldKeyValue,
+            hasTimeLeftAtLeast = 10.seconds
+          ).assertGet shouldBe newKeyValue
       }
     }
   }

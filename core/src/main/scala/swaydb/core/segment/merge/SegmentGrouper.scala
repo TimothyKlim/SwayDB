@@ -386,51 +386,73 @@ private[merge] object SegmentGrouper extends LazyLogging {
     Catch {
       keyValueToAdd match {
         case fixed: KeyValue.ReadOnly.Fixed =>
-          if (isLastLevel && fixed.isOverdue())
+          //          if (isLastLevel && fixed.isOverdue())
+          //            TryUtil.successUnit
+          if (???)
             TryUtil.successUnit
           else
             fixed match {
-              case Memory.Put(key, value, deadline) =>
+              case Memory.Put(key, value, applies, deadline) =>
                 doAdd(
                   Transient.Put(
                     key = key,
                     value = value,
                     deadline = deadline,
                     _,
+                    applies = applies,
                     falsePositiveRate = bloomFilterFalsePositiveRate,
                     compressDuplicateValues = compressDuplicateValues
                   )
                 )
 
               case put: Persistent.Put =>
-                put.getOrFetchValue flatMap {
-                  value =>
+                put.getOrFetchValueAndApplies flatMap {
+                  case (value, applies) =>
                     doAdd(
                       Transient.Put(
                         key = put.key,
                         value = value,
                         deadline = put.deadline,
                         _,
+                        applies = applies,
                         falsePositiveRate = bloomFilterFalsePositiveRate,
                         compressDuplicateValues = compressDuplicateValues
                       )
                     )
                 }
 
-              case remove @ (_: Memory.Remove | _: Persistent.Remove) =>
+              case remove: Memory.Remove =>
                 if (!isLastLevel)
                   doAdd(
                     Transient.Remove(
                       key = keyValueToAdd.key,
                       deadline = remove.deadline,
                       _,
+                      applies = remove.applies,
                       falsePositiveRate = bloomFilterFalsePositiveRate
                     )
                   )
                 else
                   TryUtil.successUnit
 
-              case Memory.Update(key, value, deadline) =>
+              case remove: Persistent.Remove =>
+                if (!isLastLevel)
+                  remove.getOrFetchApplies flatMap {
+                    applies =>
+                      doAdd(
+                        Transient.Remove(
+                          key = keyValueToAdd.key,
+                          deadline = remove.deadline,
+                          _,
+                          applies = applies,
+                          falsePositiveRate = bloomFilterFalsePositiveRate
+                        )
+                      )
+                  }
+                else
+                  TryUtil.successUnit
+
+              case Memory.Update(key, value, applies, deadline) =>
                 if (!isLastLevel)
                   doAdd(
                     Transient.Update(
@@ -438,6 +460,7 @@ private[merge] object SegmentGrouper extends LazyLogging {
                       value = value,
                       deadline = deadline,
                       _,
+                      applies = applies,
                       falsePositiveRate = bloomFilterFalsePositiveRate,
                       compressDuplicateValues = compressDuplicateValues
                     )
@@ -447,14 +470,15 @@ private[merge] object SegmentGrouper extends LazyLogging {
 
               case update: Persistent.Update =>
                 if (!isLastLevel)
-                  update.getOrFetchValue flatMap {
-                    value =>
+                  update.getOrFetchValueAndApplies flatMap {
+                    case (value, applies) =>
                       doAdd(
                         Transient.Update(
                           key = update.key,
                           value = value,
                           deadline = update.deadline,
                           _,
+                          applies = applies,
                           falsePositiveRate = bloomFilterFalsePositiveRate,
                           compressDuplicateValues = compressDuplicateValues
                         )
@@ -471,7 +495,7 @@ private[merge] object SegmentGrouper extends LazyLogging {
                 fromValue match {
                   case Some(fromValue) =>
                     fromValue match {
-                      case put @ Value.Put(fromValue, deadline) =>
+                      case put @ Value.Put(fromValue, applies, deadline) =>
                         if (put.hasTimeLeft())
                           doAdd(
                             Transient.Put(
@@ -479,6 +503,7 @@ private[merge] object SegmentGrouper extends LazyLogging {
                               value = fromValue,
                               deadline = deadline,
                               _,
+                              applies = applies,
                               falsePositiveRate = bloomFilterFalsePositiveRate,
                               compressDuplicateValues = compressDuplicateValues
                             )
