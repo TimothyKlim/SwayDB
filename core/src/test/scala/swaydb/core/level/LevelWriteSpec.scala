@@ -596,7 +596,7 @@ sealed trait LevelWriteSpec extends TestBase with MockFactory with PrivateMethod
       val keyValues = randomIntKeyValuesMemory(keyValuesCount)
       level.putKeyValues(keyValues).assertGet
 
-      level.putKeyValues(Slice(Memory.Range(keyValues.head.key, keyValues.last.key.readInt() + 1, None, Value.Remove(None)))).assertGet
+      level.putKeyValues(Slice(Memory.Range(keyValues.head.key, keyValues.last.key.readInt() + 1, None, Value.remove(None)))).assertGet
       level.segmentFilesInAppendix shouldBe 0
 
       level.isEmpty shouldBe true
@@ -613,7 +613,7 @@ sealed trait LevelWriteSpec extends TestBase with MockFactory with PrivateMethod
       level.putKeyValues(keyValues).assertGet
       val segmentsCountBeforeRemove = level.segmentFilesInAppendix
 
-      level.putKeyValues(Slice(Memory.Range(keyValues.head.key, keyValues.last.key.readInt() + 1, None, Value.Remove(None)))).assertGet
+      level.putKeyValues(Slice(Memory.Range(keyValues.head.key, keyValues.last.key.readInt() + 1, None, Value.remove(None)))).assertGet
       level.segmentFilesInAppendix shouldBe segmentsCountBeforeRemove
 
       level.isEmpty shouldBe false
@@ -710,7 +710,7 @@ sealed trait LevelWriteSpec extends TestBase with MockFactory with PrivateMethod
       val keyValues = randomIntKeyValuesMemory(keyValuesCount)
       level.putKeyValues(keyValues).assertGet
 
-      level.putKeyValues(Slice(Memory.Range(keyValues.head.key, keyValues.last.key.readInt() + 1, None, Value.Remove(2.seconds.fromNow)))).assertGet
+      level.putKeyValues(Slice(Memory.Range(keyValues.head.key, keyValues.last.key.readInt() + 1, None, Value.remove(2.seconds.fromNow)))).assertGet
 
       //expired key-values return empty after 2.seconds
       eventual(5.seconds) {
@@ -738,7 +738,7 @@ sealed trait LevelWriteSpec extends TestBase with MockFactory with PrivateMethod
       val keyValues = randomIntKeyValuesMemory(keyValuesCount)
       level.putKeyValues(keyValues).assertGet
 
-      level.putKeyValues(Slice(Memory.Range(keyValues.head.key, keyValues.last.key.readInt() + 1, None, Value.Remove(2.seconds.fromNow)))).assertGet
+      level.putKeyValues(Slice(Memory.Range(keyValues.head.key, keyValues.last.key.readInt() + 1, None, Value.remove(2.seconds.fromNow)))).assertGet
 
       //expired key-values return empty after 2.seconds
       eventual(5.seconds) {

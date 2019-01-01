@@ -328,10 +328,10 @@ sealed trait SegmentWriteSpec extends TestBase with Benchmark {
         )
       }
 
-      doAssert(Slice(Transient.put("a", "a"), Transient.remove("b"), Transient.Range[FromValue, RangeValue]("c", "d", Some(Value.Put("c")), Value.Update("d"))).updateStats)
-      doAssert(Slice(Transient.put("a", "a"), Transient.Range[FromValue, RangeValue]("b", "d", None, Value.Remove(None, None)), Transient.put("e", "e"), Transient.remove("f")).updateStats)
-      doAssert(Slice(Transient.put("a", "a"), Transient.put("b", "b"), Transient.put("c", "c"), Transient.Range[FromValue, RangeValue]("d", "z", Some(Value.Put("d")), Value.Remove(None, None))).updateStats)
-      doAssert(Slice(Transient.Range[FromValue, RangeValue]("a", "b", None, Value.Update("a")), Transient.put("b", "b"), Transient.put("c", "c"), Transient.Range[FromValue, RangeValue]("d", "z", Some(Value.Put("d")), Value.Update("d"))).updateStats)
+      doAssert(Slice(Transient.put("a", "a"), Transient.remove("b"), Transient.Range[FromValue, RangeValue]("c", "d", Some(Value.put("c")), Value.update("d"))).updateStats)
+      doAssert(Slice(Transient.put("a", "a"), Transient.Range[FromValue, RangeValue]("b", "d", None, Value.remove(None, None)), Transient.put("e", "e"), Transient.remove("f")).updateStats)
+      doAssert(Slice(Transient.put("a", "a"), Transient.put("b", "b"), Transient.put("c", "c"), Transient.Range[FromValue, RangeValue]("d", "z", Some(Value.put("d")), Value.remove(None, None))).updateStats)
+      doAssert(Slice(Transient.Range[FromValue, RangeValue]("a", "b", None, Value.update("a")), Transient.put("b", "b"), Transient.put("c", "c"), Transient.Range[FromValue, RangeValue]("d", "z", Some(Value.put("d")), Value.update("d"))).updateStats)
     }
 
     "not create bloomFilter if the Segment has Remove range key-values and set hasRange to true" in {
@@ -343,28 +343,28 @@ sealed trait SegmentWriteSpec extends TestBase with Benchmark {
       }
 
       assertOnSegment(
-        keyValues = Slice(Memory.put(0), Memory.Range(1, 10, None, Value.Remove(randomDeadlineOption, None))),
+        keyValues = Slice(Memory.put(0), Memory.Range(1, 10, None, Value.remove(randomDeadlineOption, None))),
         assertion = doAssert(_)
       )
 
       assertOnSegment(
-        keyValues = Slice(Memory.put(0), Memory.Range(1, 10, Some(Value.Remove(None, None)), Value.Remove(randomDeadlineOption, None))),
+        keyValues = Slice(Memory.put(0), Memory.Range(1, 10, Some(Value.remove(None, None)), Value.remove(randomDeadlineOption, None))),
         assertion = doAssert(_)
       )
 
       assertOnSegment(
-        keyValues = Slice(Memory.put(0), Memory.Range(1, 10, Some(Value.Update(None, randomDeadlineOption, None)), Value.Remove(randomDeadlineOption, None))),
+        keyValues = Slice(Memory.put(0), Memory.Range(1, 10, Some(Value.update(None, randomDeadlineOption, None)), Value.remove(randomDeadlineOption, None))),
         assertion = doAssert(_)
       )
 
       assertOnSegment(
-        keyValues = Slice(Memory.put(0), Memory.Range(1, 10, Some(Value.Put(Some(1), randomDeadlineOption, None)), Value.Remove(randomDeadlineOption, None))),
+        keyValues = Slice(Memory.put(0), Memory.Range(1, 10, Some(Value.put(Some(1), randomDeadlineOption, None)), Value.remove(randomDeadlineOption, None))),
         assertion = doAssert(_)
       )
 
       //group can also have a range key-value which should have the same effect.
       assertOnSegment(
-        keyValues = Slice(Memory.put(0), randomGroup(Slice(Memory.Range(1, 10, Some(Value.Put(Some(1), randomDeadlineOption, None)), Value.Remove(randomDeadlineOption, None))).toTransient).toMemory),
+        keyValues = Slice(Memory.put(0), randomGroup(Slice(Memory.Range(1, 10, Some(Value.put(Some(1), randomDeadlineOption, None)), Value.remove(randomDeadlineOption, None))).toTransient).toMemory),
         assertion = doAssert(_)
       )
     }
@@ -381,7 +381,7 @@ sealed trait SegmentWriteSpec extends TestBase with Benchmark {
       )
 
       assertOnSegment(
-        keyValues = Slice(Memory.put(0), Memory.Range(1, 10, None, Value.Update(10, randomDeadlineOption))),
+        keyValues = Slice(Memory.put(0), Memory.Range(1, 10, None, Value.update(10, randomDeadlineOption))),
         assertion =
           segment => {
             segment.getBloomFilter.assertGetOpt shouldBe defined
@@ -394,7 +394,7 @@ sealed trait SegmentWriteSpec extends TestBase with Benchmark {
         keyValues =
           Slice(
             Memory.put(0),
-            randomGroup(Slice(Memory.Range(1, 10, Some(Value.Put(Some(1), randomDeadlineOption, None)), Value.Update(1, randomDeadlineOption))).toTransient).toMemory
+            randomGroup(Slice(Memory.Range(1, 10, Some(Value.put(Some(1), randomDeadlineOption, None)), Value.update(1, randomDeadlineOption))).toTransient).toMemory
           ),
         assertion =
           segment => {
@@ -413,32 +413,32 @@ sealed trait SegmentWriteSpec extends TestBase with Benchmark {
       }
 
       assertOnSegment(
-        keyValues = Slice(Memory.put(0), Memory.Range(1, 10, None, Value.Update(10))),
+        keyValues = Slice(Memory.put(0), Memory.Range(1, 10, None, Value.update(10))),
         assertion = doAssert(_)
       )
 
       assertOnSegment(
-        keyValues = Slice(Memory.put(0), Memory.Range(1, 10, Some(Value.Remove(None, None)), Value.Update(10))),
+        keyValues = Slice(Memory.put(0), Memory.Range(1, 10, Some(Value.remove(None, None)), Value.update(10))),
         assertion = doAssert(_)
       )
 
       assertOnSegment(
-        keyValues = Slice(Memory.put(0), Memory.Range(1, 10, Some(Value.Put(1)), Value.Update(10))),
+        keyValues = Slice(Memory.put(0), Memory.Range(1, 10, Some(Value.put(1)), Value.update(10))),
         assertion = doAssert(_)
       )
 
       assertOnSegment(
-        keyValues = Slice(Memory.put(0), Memory.Range(1, 10, None, Value.Remove(None, None))),
+        keyValues = Slice(Memory.put(0), Memory.Range(1, 10, None, Value.remove(None, None))),
         assertion = doAssert(_)
       )
 
       assertOnSegment(
-        keyValues = Slice(Memory.put(0), Memory.Range(1, 10, Some(Value.Remove(10.seconds.fromNow)), Value.Remove(None, None))),
+        keyValues = Slice(Memory.put(0), Memory.Range(1, 10, Some(Value.remove(10.seconds.fromNow)), Value.remove(None, None))),
         assertion = doAssert(_)
       )
 
       assertOnSegment(
-        keyValues = Slice(Memory.put(0), Memory.Range(1, 10, Some(Value.Put(1)), Value.Remove(None, None))),
+        keyValues = Slice(Memory.put(0), Memory.Range(1, 10, Some(Value.put(1)), Value.remove(None, None))),
         assertion = doAssert(_)
       )
 
@@ -448,7 +448,7 @@ sealed trait SegmentWriteSpec extends TestBase with Benchmark {
       )
 
       assertOnSegment(
-        keyValues = Slice(randomGroup(Slice(Memory.Range(1, 10, Some(Value.Put(Some(1), randomDeadlineOption, None)), Value.Update(1, randomDeadlineOption))).toTransient).toMemory),
+        keyValues = Slice(randomGroup(Slice(Memory.Range(1, 10, Some(Value.put(Some(1), randomDeadlineOption, None)), Value.update(1, randomDeadlineOption))).toTransient).toMemory),
         assertion = doAssert(_)
       )
     }
@@ -854,15 +854,15 @@ sealed trait SegmentWriteSpec extends TestBase with Benchmark {
           Slice(
             Transient.put(1, Slice.empty),
             //without deadline
-            Transient.Range[FromValue, RangeValue](2, 3, None, Value.Update(Slice.empty)),
-            Transient.Range[FromValue, RangeValue](3, 4, Some(Value.Put(Slice.empty)), Value.Update(Slice.empty)),
-            Transient.Range[FromValue, RangeValue](4, 5, Some(Value.Remove(None, None)), Value.Update(Slice.empty)),
-            Transient.Range[FromValue, RangeValue](5, 6, Some(Value.Put(Slice.empty)), Value.Remove(None, None)),
+            Transient.Range[FromValue, RangeValue](2, 3, None, Value.update(Slice.empty)),
+            Transient.Range[FromValue, RangeValue](3, 4, Some(Value.put(Slice.empty)), Value.update(Slice.empty)),
+            Transient.Range[FromValue, RangeValue](4, 5, Some(Value.remove(None, None)), Value.update(Slice.empty)),
+            Transient.Range[FromValue, RangeValue](5, 6, Some(Value.put(Slice.empty)), Value.remove(None, None)),
             //with deadline
-            Transient.Range[FromValue, RangeValue](6, 7, None, Value.Update(Slice.empty, deadline)),
-            Transient.Range[FromValue, RangeValue](7, 8, Some(Value.Put(Slice.empty, deadline)), Value.Update(Slice.empty, deadline)),
-            Transient.Range[FromValue, RangeValue](8, 9, Some(Value.Remove(deadline)), Value.Update(Slice.empty, deadline)),
-            Transient.Range[FromValue, RangeValue](9, 10, Some(Value.Put(Slice.empty, deadline)), Value.Remove(deadline))
+            Transient.Range[FromValue, RangeValue](6, 7, None, Value.update(Slice.empty, deadline)),
+            Transient.Range[FromValue, RangeValue](7, 8, Some(Value.put(Slice.empty, deadline)), Value.update(Slice.empty, deadline)),
+            Transient.Range[FromValue, RangeValue](8, 9, Some(Value.remove(deadline)), Value.update(Slice.empty, deadline)),
+            Transient.Range[FromValue, RangeValue](9, 10, Some(Value.put(Slice.empty, deadline)), Value.remove(deadline))
           ).updateStats
         ).assertGet
 
@@ -870,35 +870,35 @@ sealed trait SegmentWriteSpec extends TestBase with Benchmark {
 
       val range2 = segment.get(2).assertGet.asInstanceOf[KeyValue.ReadOnly.Range]
       range2.fetchFromValue.assertGetOpt shouldBe empty
-      range2.fetchRangeValue.assertGet shouldBe Value.Update(None, None, None)
+      range2.fetchRangeValue.assertGet shouldBe Value.update(None, None, None)
 
       val range3 = segment.get(3).assertGet.asInstanceOf[KeyValue.ReadOnly.Range]
-      range3.fetchFromValue.assertGet shouldBe Value.Put(None, None, None)
-      range3.fetchRangeValue.assertGet shouldBe Value.Update(None, None, None)
+      range3.fetchFromValue.assertGet shouldBe Value.put(None, None, None)
+      range3.fetchRangeValue.assertGet shouldBe Value.update(None, None, None)
 
       val range4 = segment.get(4).assertGet.asInstanceOf[KeyValue.ReadOnly.Range]
-      range4.fetchFromValue.assertGet shouldBe Value.Remove(None, None)
-      range4.fetchRangeValue.assertGet shouldBe Value.Update(None, None, None)
+      range4.fetchFromValue.assertGet shouldBe Value.remove(None, None)
+      range4.fetchRangeValue.assertGet shouldBe Value.update(None, None, None)
 
       val range5 = segment.get(5).assertGet.asInstanceOf[KeyValue.ReadOnly.Range]
-      range5.fetchFromValue.assertGet shouldBe Value.Put(None, None, None)
-      range5.fetchRangeValue.assertGet shouldBe Value.Remove(None, None)
+      range5.fetchFromValue.assertGet shouldBe Value.put(None, None, None)
+      range5.fetchRangeValue.assertGet shouldBe Value.remove(None, None)
 
       val range6 = segment.get(6).assertGet.asInstanceOf[KeyValue.ReadOnly.Range]
       range6.fetchFromValue.assertGetOpt shouldBe None
-      range6.fetchRangeValue.assertGet shouldBe Value.Update(None, Some(deadline), None)
+      range6.fetchRangeValue.assertGet shouldBe Value.update(None, Some(deadline), None)
 
       val range7 = segment.get(7).assertGet.asInstanceOf[KeyValue.ReadOnly.Range]
-      range7.fetchFromValue.assertGet shouldBe Value.Put(None, Some(deadline), None)
-      range7.fetchRangeValue.assertGet shouldBe Value.Update(None, Some(deadline), None)
+      range7.fetchFromValue.assertGet shouldBe Value.put(None, Some(deadline), None)
+      range7.fetchRangeValue.assertGet shouldBe Value.update(None, Some(deadline), None)
 
       val range8 = segment.get(8).assertGet.asInstanceOf[KeyValue.ReadOnly.Range]
-      range8.fetchFromValue.assertGet shouldBe Value.Remove(Some(deadline), None)
-      range8.fetchRangeValue.assertGet shouldBe Value.Update(None, Some(deadline), None)
+      range8.fetchFromValue.assertGet shouldBe Value.remove(Some(deadline), None)
+      range8.fetchRangeValue.assertGet shouldBe Value.update(None, Some(deadline), None)
 
       val range9 = segment.get(9).assertGet.asInstanceOf[KeyValue.ReadOnly.Range]
-      range9.fetchFromValue.assertGet shouldBe Value.Put(None, Some(deadline), None)
-      range9.fetchRangeValue.assertGet shouldBe Value.Remove(deadline)
+      range9.fetchFromValue.assertGet shouldBe Value.put(None, Some(deadline), None)
+      range9.fetchRangeValue.assertGet shouldBe Value.remove(deadline)
     }
 
     "reopen closed channel" in {
@@ -982,7 +982,7 @@ sealed trait SegmentWriteSpec extends TestBase with Benchmark {
       val segment = TestSegment(keyValues, removeDeletes = false).assertGet
       assertGet(keyValues, segment)
 
-      val deleteKeyValues = Slice(Memory.remove(1), Memory.remove(2), Memory.remove(3), Memory.remove(4), Memory.Range(5, 10, None, Value.Remove(None, None)))
+      val deleteKeyValues = Slice(Memory.remove(1), Memory.remove(2), Memory.remove(3), Memory.remove(4), Memory.Range(5, 10, None, Value.remove(None, None)))
 
       val deletedSegment = segment.put(deleteKeyValues, 4.mb, 0.1, 10.seconds, true).assertGet
       deletedSegment should have size 1
@@ -1035,18 +1035,18 @@ sealed trait SegmentWriteSpec extends TestBase with Benchmark {
     }
 
     "return no new segments if all the KeyValues in the Segment were deleted and if remove deletes is true" in {
-      val keyValues = Slice(Transient.put(1), Transient.put(2), Transient.put(3), Transient.put(4), Transient.Range[FromValue, RangeValue](5, 10, None, Value.Update(10))).updateStats
+      val keyValues = Slice(Transient.put(1), Transient.put(2), Transient.put(3), Transient.put(4), Transient.Range[FromValue, RangeValue](5, 10, None, Value.update(10))).updateStats
       val segment = TestSegment(keyValues, removeDeletes = true).assertGet
 
       val deleteKeyValues = Slice.create[Memory](keyValues.size)
       (1 to 4).foreach(key => deleteKeyValues add Memory.remove(key))
-      deleteKeyValues add Memory.Range(5, 10, None, Value.Remove(None, None))
+      deleteKeyValues add Memory.Range(5, 10, None, Value.remove(None, None))
 
       segment.put(deleteKeyValues, 4.mb, 0.1, 10.seconds, true).assertGet shouldBe empty
     }
 
     "slice Put range into slice with fromValue set to Remove" in {
-      val keyValues = Slice(Transient.Range[FromValue, RangeValue](1, 10, None, Value.Update(10))).updateStats
+      val keyValues = Slice(Transient.Range[FromValue, RangeValue](1, 10, None, Value.update(10))).updateStats
       val segment = TestSegment(keyValues, removeDeletes = false).assertGet
 
       val deleteKeyValues = Slice.create[Memory](10)
@@ -1054,7 +1054,7 @@ sealed trait SegmentWriteSpec extends TestBase with Benchmark {
 
       val removedRanges = segment.put(deleteKeyValues, 4.mb, 0.1, 10.seconds, true).assertGet.head.getAll().assertGet
 
-      val expected: Seq[Memory] = (1 to 9).map(key => Memory.Range(key, key + 1, Some(Value.Remove(None, None)), Value.Update(10))) :+ Memory.remove(10)
+      val expected: Seq[Memory] = (1 to 9).map(key => Memory.Range(key, key + 1, Some(Value.remove(None, None)), Value.update(10))) :+ Memory.remove(10)
 
       removedRanges shouldBe expected
     }

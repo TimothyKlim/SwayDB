@@ -106,11 +106,11 @@
 //        val upperLevelKeyValue = if (Random.nextBoolean()) randomRangeKeyValue(5, 10) else randomFixedKeyValue(5)
 //        val lowerLevelKeyValue = if (Random.nextBoolean()) randomRangeKeyValue(5, 10) else randomFixedKeyValue(5)
 //
-//        //      val upperLevelKeyValue = Memory.Range(5, 10, Some(Value.Update(5, None)), Value.Remove(1000.seconds.fromNow))
+//        //      val upperLevelKeyValue = Memory.Range(5, 10, Some(Value.update(5, None)), Value.remove(1000.seconds.fromNow))
 //        //      val lowerLevelKeyValue = Memory.update(5, None, 2099.seconds.fromNow)
 //
-//        //      val upperLevelKeyValue = Memory.Range(5, 10, Some(Value.Update(5, None)), Value.Remove(1000.seconds.fromNow))
-//        //      val lowerLevelKeyValue = Memory.Range(5, 10, Some(Value.Update(10, None)), Value.Update(None, None))
+//        //      val upperLevelKeyValue = Memory.Range(5, 10, Some(Value.update(5, None)), Value.remove(1000.seconds.fromNow))
+//        //      val lowerLevelKeyValue = Memory.Range(5, 10, Some(Value.update(10, None)), Value.update(None, None))
 //
 //        println
 //        println("upperLevelKeyValue: " + upperLevelKeyValue)
@@ -164,11 +164,11 @@
 //        val upperLevelKeyValue = if (Random.nextBoolean()) randomRangeKeyValue(5, 10) else randomFixedKeyValue(5)
 //        val lowerLevelKeyValue = if (Random.nextBoolean()) randomRangeKeyValue(6, 9) else randomFixedKeyValue(6)
 //
-//        //      val upperLevelKeyValue = Memory.Range(5, 10, Some(Value.Remove(None)), Value.Update(None, 1000.seconds))
-//        //      val lowerLevelKeyValue = Memory.Range(6, 9, Some(Value.Put(None, 100.seconds)), Value.Update(None, 200.seconds))
+//        //      val upperLevelKeyValue = Memory.Range(5, 10, Some(Value.remove(None)), Value.update(None, 1000.seconds))
+//        //      val lowerLevelKeyValue = Memory.Range(6, 9, Some(Value.put(None, 100.seconds)), Value.update(None, 200.seconds))
 //
-//        //        val upperLevelKeyValue = Memory.Range(5, 10, Some(Value.Remove(1000.seconds.fromNow)), Value.Remove(None))
-//        //        //      val lowerLevelKeyValue = Memory.Range(6, 9, Some(Value.Put(None, 100.seconds)), Value.Update(None, 200.seconds))
+//        //        val upperLevelKeyValue = Memory.Range(5, 10, Some(Value.remove(1000.seconds.fromNow)), Value.remove(None))
+//        //        //      val lowerLevelKeyValue = Memory.Range(6, 9, Some(Value.put(None, 100.seconds)), Value.update(None, 200.seconds))
 //        //        val lowerLevelKeyValue = Memory.put(6, None, 10000.seconds.fromNow)
 //
 //        println
@@ -257,11 +257,11 @@
 //        val upperLevelKeyValue = if (Random.nextBoolean()) randomRangeKeyValue(10, 20) else randomFixedKeyValue(10)
 //        val lowerLevelKeyValue = if (Random.nextBoolean()) randomRangeKeyValue(5, 9) else randomFixedKeyValue(5)
 //
-//        //      val upperLevelKeyValue = Memory.Range(5, 10, Some(Value.Remove(None)), Value.Update(None, 1000.seconds))
-//        //      val lowerLevelKeyValue = Memory.Range(6, 9, Some(Value.Put(None, 100.seconds)), Value.Update(None, 200.seconds))
+//        //      val upperLevelKeyValue = Memory.Range(5, 10, Some(Value.remove(None)), Value.update(None, 1000.seconds))
+//        //      val lowerLevelKeyValue = Memory.Range(6, 9, Some(Value.put(None, 100.seconds)), Value.update(None, 200.seconds))
 //
-//        //        val upperLevelKeyValue = Memory.Range(5, 10, Some(Value.Remove(1000.seconds.fromNow)), Value.Remove(None))
-//        //        //      val lowerLevelKeyValue = Memory.Range(6, 9, Some(Value.Put(None, 100.seconds)), Value.Update(None, 200.seconds))
+//        //        val upperLevelKeyValue = Memory.Range(5, 10, Some(Value.remove(1000.seconds.fromNow)), Value.remove(None))
+//        //        //      val lowerLevelKeyValue = Memory.Range(6, 9, Some(Value.put(None, 100.seconds)), Value.update(None, 200.seconds))
 //        //        val lowerLevelKeyValue = Memory.put(6, None, 10000.seconds.fromNow)
 //
 //        println
@@ -407,11 +407,11 @@
 //        val upperLevelKeyValue = if (Random.nextBoolean()) randomRangeKeyValue(5, 10) else randomFixedKeyValue(5)
 //        val lowerLevelKeyValue = if (Random.nextBoolean()) randomRangeKeyValue(7, 20) else randomFixedKeyValue(7)
 //
-//        //      val upperLevelKeyValue = Memory.Range(5, 10, Some(Value.Put(None, 10000.seconds)), Value.Remove(20000.seconds.fromNow))
-//        //      val lowerLevelKeyValue = Memory.Range(7, 15, Some(Value.Put(7, 10000.seconds)), Value.Remove(None))
+//        //      val upperLevelKeyValue = Memory.Range(5, 10, Some(Value.put(None, 10000.seconds)), Value.remove(20000.seconds.fromNow))
+//        //      val lowerLevelKeyValue = Memory.Range(7, 15, Some(Value.put(7, 10000.seconds)), Value.remove(None))
 //
 //        //        val upperLevelKeyValue = Memory.remove(5, randomDeadlineOption)
-//        //        val lowerLevelKeyValue = Memory.Range(7, 15, Some(Value.Put(Some(7), randomDeadlineOption)), Value.Remove(randomDeadlineOption))
+//        //        val lowerLevelKeyValue = Memory.Range(7, 15, Some(Value.put(Some(7), randomDeadlineOption)), Value.remove(randomDeadlineOption))
 //
 //        println
 //        println("upperLevelKeyValue: " + upperLevelKeyValue)
@@ -500,11 +500,11 @@
 //        val upperLevelKeyValue = if (Random.nextBoolean()) randomRangeKeyValue(5, 10) else randomFixedKeyValue(5)
 //        val lowerLevelKeyValue = if (Random.nextBoolean()) randomRangeKeyValue(10, 20) else randomFixedKeyValue(10)
 //
-//        //      val upperLevelKeyValue = Memory.Range(5, 10, Some(Value.Put(None, 10000.seconds)), Value.Remove(20000.seconds.fromNow))
-//        //      val lowerLevelKeyValue = Memory.Range(7, 15, Some(Value.Put(7, 10000.seconds)), Value.Remove(None))
+//        //      val upperLevelKeyValue = Memory.Range(5, 10, Some(Value.put(None, 10000.seconds)), Value.remove(20000.seconds.fromNow))
+//        //      val lowerLevelKeyValue = Memory.Range(7, 15, Some(Value.put(7, 10000.seconds)), Value.remove(None))
 //
 //        //        val upperLevelKeyValue = Memory.remove(5, randomDeadlineOption)
-//        //        val lowerLevelKeyValue = Memory.Range(7, 15, Some(Value.Put(Some(7), randomDeadlineOption)), Value.Remove(randomDeadlineOption))
+//        //        val lowerLevelKeyValue = Memory.Range(7, 15, Some(Value.put(Some(7), randomDeadlineOption)), Value.remove(randomDeadlineOption))
 //
 //        println
 //        println("upperLevelKeyValue: " + upperLevelKeyValue)

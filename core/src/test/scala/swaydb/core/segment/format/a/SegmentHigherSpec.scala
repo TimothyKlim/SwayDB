@@ -139,10 +139,10 @@ sealed trait SegmentHigherSpec extends TestBase with ScalaFutures with PrivateMe
       assertOnSegment(
         keyValues = Slice(
           Memory.put(1, 1),
-          Memory.Range(2, 5, None, Value.Remove(None, None)),
+          Memory.Range(2, 5, None, Value.remove(None, None)),
           Memory.remove(10),
-          Memory.Range(11, 20, None, Value.Update(11)),
-          Memory.Range(20, 30, None, Value.Update(20))
+          Memory.Range(11, 20, None, Value.update(11)),
+          Memory.Range(20, 30, None, Value.update(20))
         ),
         assertionWithKeyValues =
           (keyValues, segment) => {

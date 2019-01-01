@@ -121,7 +121,7 @@
 //
 //  "SegmentMerger.split" should {
 //    "split key-values" in {
-//      val keyValues: Slice[Memory] = Slice(Memory.put(1, 1), Memory.remove(2), Memory.put(3, 3), Memory.put(4, 4), Memory.Range(5, 10, Some(Value.Remove(None, None)), Value.Update(5)))
+//      val keyValues: Slice[Memory] = Slice(Memory.put(1, 1), Memory.remove(2), Memory.put(3, 3), Memory.put(4, 4), Memory.Range(5, 10, Some(Value.remove(None, None)), Value.update(5)))
 //
 //      val split1 =
 //        SegmentMerger.split(
@@ -139,7 +139,7 @@
 //          ListBuffer(Transient.remove(2)),
 //          ListBuffer(Transient.put(3, 3)),
 //          ListBuffer(Transient.put(4, 4)), //51.byte Segment size
-//          ListBuffer(Transient.Range[FromValue, RangeValue](5, 10, Some(Value.Remove(None, None)), Value.Update(5))) //56.bytes (segment size)
+//          ListBuffer(Transient.Range[FromValue, RangeValue](5, 10, Some(Value.remove(None, None)), Value.update(5))) //56.bytes (segment size)
 //        )
 //
 //      val split2 =
@@ -158,7 +158,7 @@
 //          Transient.remove(2),
 //          Transient.put(3, 3),
 //          Transient.put(4, 4), //51.byte Segment size
-//          Transient.Range[FromValue, RangeValue](5, 10, Some(Value.Remove(None, None)), Value.Update(5)) //56.bytes (segment size)
+//          Transient.Range[FromValue, RangeValue](5, 10, Some(Value.remove(None, None)), Value.update(5)) //56.bytes (segment size)
 //        ).updateStats
 //
 //      split2.assertGet.flatten shouldBe expected

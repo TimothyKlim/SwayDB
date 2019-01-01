@@ -71,14 +71,6 @@ private[swaydb] object Value {
     def time: Option[Time]
   }
 
-  object Remove {
-    def apply(deadline: Deadline): Remove =
-      new Remove(Some(deadline), None)
-
-    def apply(deadline: Option[Deadline]): Remove =
-      new Remove(deadline, None)
-  }
-
   case class Remove(deadline: Option[Deadline],
                     time: Option[Time]) extends RangeValue with Apply {
 
@@ -97,26 +89,6 @@ private[swaydb] object Value {
       None
   }
 
-  object Put {
-
-    def apply(value: Slice[Byte]): Put =
-      new Put(Some(value), None, None)
-
-    def apply(value: Option[Slice[Byte]])(removeAfter: Deadline): Put =
-      new Put(value, Some(removeAfter), None)
-
-    def apply(value: Slice[Byte], removeAfter: Deadline): Put =
-      new Put(Some(value), Some(removeAfter), None)
-
-    def apply(value: Option[Slice[Byte]], removeAfter: Option[Deadline]): Put =
-      new Put(value, removeAfter, None)
-
-    def apply(value: Slice[Byte], duration: FiniteDuration): Put =
-      new Put(Some(value), Some(duration.fromNow), None)
-
-    def apply(value: Option[Slice[Byte]], duration: FiniteDuration): Put =
-      new Put(value, Some(duration.fromNow), None)
-  }
 
   case class Put(value: Option[Slice[Byte]],
                  deadline: Option[Deadline],
@@ -135,66 +107,6 @@ private[swaydb] object Value {
 
     def hasTimeLeft(): Boolean =
       deadline.forall(_.hasTimeLeft())
-  }
-
-  object Update {
-
-    def apply(value: Slice[Byte]): Update =
-      new Update(Some(value), None, None)
-
-    //    def apply(value: Slice[Byte], removeAfter: Deadline): Update =
-    //      new Update(Some(value), Some(removeAfter), None)
-
-    //    def apply(value: Slice[Byte], duration: FiniteDuration): Update =
-    //      new Update(Some(value), Some(duration.fromNow), None)
-    //
-    //    def apply(value: Option[Slice[Byte]], duration: FiniteDuration): Update =
-    //      new Update(value, Some(duration.fromNow), None)
-
-    //    def apply(value: Option[Slice[Byte]])(removeAfter: Deadline): Update =
-    //      new Update(value, Some(removeAfter), None)
-
-    def apply(value: Slice[Byte], deadline: Option[Deadline]): Update =
-      new Update(
-        value = Some(value),
-        deadline = deadline,
-        time = None,
-      )
-
-    def apply(value: Slice[Byte], removeAfter: Deadline): Update =
-      new Update(
-        value = Some(value),
-        time = None,
-        deadline = Some(removeAfter)
-      )
-
-    def apply(value: Option[Slice[Byte]], removeAfter: Option[Deadline]): Update =
-      new Update(
-        value = value,
-        time = None,
-        deadline = removeAfter
-      )
-
-    def apply(value: Slice[Byte], duration: FiniteDuration): Update =
-      new Update(
-        value = Some(value),
-        time = None,
-        deadline = Some(duration.fromNow)
-      )
-
-    def apply(value: Option[Slice[Byte]], duration: FiniteDuration): Update =
-      new Update(
-        value = value,
-        time = None,
-        deadline = Some(duration.fromNow)
-      )
-
-    def apply(value: Option[Slice[Byte]])(removeAfter: Deadline): Update =
-      new Update(
-        value = value,
-        time = None,
-        deadline = Some(removeAfter)
-      )
   }
 
   case class Update(value: Option[Slice[Byte]],

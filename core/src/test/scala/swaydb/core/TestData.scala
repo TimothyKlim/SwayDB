@@ -785,4 +785,66 @@ trait TestData extends TryAssert {
 
   }
 
+  implicit class ValueRemoveData(remove: Value.type) {
+
+    def remove(deadline: Option[Deadline],
+               time: Option[Time]): Value.Remove =
+      Value.Remove(deadline, time)
+
+    def remove(deadline: Deadline): Value.Remove =
+      Value.Remove(Some(deadline), None)
+
+    def remove(deadline: Option[Deadline]): Value.Remove =
+      Value.Remove(deadline, None)
+
+    def put(value: Option[Slice[Byte]],
+            deadline: Option[Deadline],
+            time: Option[Time]): Value.Put =
+      Value.Put(Some(value), deadline, time)
+
+    def put(value: Slice[Byte]): Value.Put =
+      Value.Put(Some(value), None, None)
+
+    def put(value: Option[Slice[Byte]])(removeAfter: Deadline): Value.Put =
+      Value.Put(value, Some(removeAfter), None)
+
+    def put(value: Slice[Byte], removeAfter: Deadline): Value.Put =
+      Value.Put(Some(value), Some(removeAfter), None)
+
+    def put(value: Option[Slice[Byte]], removeAfter: Option[Deadline]): Value.Put =
+      Value.Put(value, removeAfter, None)
+
+    def put(value: Slice[Byte], duration: FiniteDuration): Value.Put =
+      Value.Put(Some(value), Some(duration.fromNow), None)
+
+    def put(value: Option[Slice[Byte]], duration: FiniteDuration): Value.Put =
+      Value.Put(value, Some(duration.fromNow), None)
+
+    def update(value: Option[Slice[Byte]],
+               deadline: Option[Deadline],
+               time: Option[Time]): Value.Update =
+      Value.Update(Some(value), deadline, time)
+
+    def update(value: Slice[Byte]): Value.Update =
+      Value.Update(Some(value), None, None)
+
+    def update(value: Slice[Byte], deadline: Option[Deadline]): Value.Update =
+      Value.Update(Some(value), deadline, None)
+
+    def update(value: Option[Slice[Byte]])(removeAfter: Deadline): Value.Update =
+      Value.Update(value, Some(removeAfter), None)
+
+    def update(value: Slice[Byte], removeAfter: Deadline): Value.Update =
+      Value.Update(Some(value), Some(removeAfter), None)
+
+    def update(value: Option[Slice[Byte]], removeAfter: Option[Deadline]): Value.Update =
+      Value.Update(value, removeAfter, None)
+
+    def update(value: Slice[Byte], duration: FiniteDuration): Value.Update =
+      Value.Update(Some(value), Some(duration.fromNow), None)
+
+    def update(value: Option[Slice[Byte]], duration: FiniteDuration): Value.Update =
+      Value.Update(value, Some(duration.fromNow), None)
+  }
 }
+

@@ -100,7 +100,7 @@ sealed trait SegmentReadSpec extends TestBase with ScalaFutures with PrivateMeth
     }
 
     "return true if the input key-value belong to the Segment else false when the Segment's max key is a Range key-value" in {
-      val segment = TestSegment(Slice(Transient.put(1), Transient.Range[FromValue, RangeValue](5, 10, None, Value.Remove(None, None))).updateStats).assertGet
+      val segment = TestSegment(Slice(Transient.put(1), Transient.Range[FromValue, RangeValue](5, 10, None, Value.remove(None, None))).updateStats).assertGet
 
       Segment.belongsTo(Transient.put(0), segment) shouldBe false
 
@@ -127,14 +127,14 @@ sealed trait SegmentReadSpec extends TestBase with ScalaFutures with PrivateMeth
     }
 
     "return true if the input key-value belong to the Segment else false when the Segment's min key is a Range key-value" in {
-      val segment = TestSegment(Slice(Transient.Range[FromValue, RangeValue](1, 10, None, Value.Remove(None, None)), Transient.put(11)).updateStats).assertGet
+      val segment = TestSegment(Slice(Transient.Range[FromValue, RangeValue](1, 10, None, Value.remove(None, None)), Transient.put(11)).updateStats).assertGet
 
       Segment.belongsTo(Transient.put(0), segment) shouldBe false
 
       Segment.belongsTo(Transient.put(1), segment) shouldBe true
       Segment.belongsTo(Transient.put(2), segment) shouldBe true
       Segment.belongsTo(Transient.remove(3), segment) shouldBe true
-      Segment.belongsTo(Transient.Range[FromValue, RangeValue](3, 10, None, Value.Remove(None, None)), segment) shouldBe true
+      Segment.belongsTo(Transient.Range[FromValue, RangeValue](3, 10, None, Value.remove(None, None)), segment) shouldBe true
       Segment.belongsTo(Transient.put(4), segment) shouldBe true
       Segment.belongsTo(Transient.remove(5), segment) shouldBe true
       Segment.belongsTo(Transient.remove(6), segment) shouldBe true
@@ -149,10 +149,10 @@ sealed trait SegmentReadSpec extends TestBase with ScalaFutures with PrivateMeth
       Segment.belongsTo(randomGroup(Slice(Memory.remove(6), Memory.put(20, "value")).toTransient), segment) shouldBe true
       Segment.belongsTo(randomGroup(Slice(Memory.remove(12), Memory.put(20, "value")).toTransient), segment) shouldBe false
       Segment.belongsTo(randomGroup(Slice(Memory.put(20, "value")).toTransient), segment) shouldBe false
-      Segment.belongsTo(randomGroup(Slice(Memory.Range(0, 1, None, Value.Remove(None, None))).toTransient), segment) shouldBe false
-      Segment.belongsTo(randomGroup(Slice(Memory.Range(1, 2, None, Value.Remove(None, None))).toTransient), segment) shouldBe true
-      Segment.belongsTo(randomGroup(Slice(Memory.Range(11, 12, None, Value.Remove(None, None))).toTransient), segment) shouldBe true
-      Segment.belongsTo(randomGroup(Slice(Memory.Range(12, 20, None, Value.Remove(None, None))).toTransient), segment) shouldBe false
+      Segment.belongsTo(randomGroup(Slice(Memory.Range(0, 1, None, Value.remove(None, None))).toTransient), segment) shouldBe false
+      Segment.belongsTo(randomGroup(Slice(Memory.Range(1, 2, None, Value.remove(None, None))).toTransient), segment) shouldBe true
+      Segment.belongsTo(randomGroup(Slice(Memory.Range(11, 12, None, Value.remove(None, None))).toTransient), segment) shouldBe true
+      Segment.belongsTo(randomGroup(Slice(Memory.Range(12, 20, None, Value.remove(None, None))).toTransient), segment) shouldBe false
 
       segment.close.assertGet
     }
@@ -218,7 +218,7 @@ sealed trait SegmentReadSpec extends TestBase with ScalaFutures with PrivateMeth
     }
 
     "return true for overlapping KeyValues else false for Segments if the Segment's last key-value is a Range" in {
-      val segment = TestSegment(Slice(Transient.put(1), Transient.Range[FromValue, RangeValue](5, 10, None, Value.Remove(None, None))).updateStats).assertGet
+      val segment = TestSegment(Slice(Transient.put(1), Transient.Range[FromValue, RangeValue](5, 10, None, Value.remove(None, None))).updateStats).assertGet
 
 
       //0 - 0
@@ -355,7 +355,7 @@ sealed trait SegmentReadSpec extends TestBase with ScalaFutures with PrivateMeth
 
       //0          -          22
       //      4-5,    10-20
-      segments1 = Seq(TestSegment(Slice(Transient.Range[FromValue, RangeValue](0, 22, None, Value.Remove(None, None))).updateStats).assertGet)
+      segments1 = Seq(TestSegment(Slice(Transient.Range[FromValue, RangeValue](0, 22, None, Value.remove(None, None))).updateStats).assertGet)
       segments2 = Seq(TestSegment(Slice(Transient.put(4), Transient.remove(5)).updateStats).assertGet, TestSegment(Slice(Transient.put(10), Transient.remove(20)).updateStats).assertGet)
       Segment.partitionOverlapping(segments1, segments2) shouldBe(segments1, Seq.empty)
     }
@@ -420,81 +420,81 @@ sealed trait SegmentReadSpec extends TestBase with ScalaFutures with PrivateMeth
       //0 1
       //    2 3
       var segment1 = TestSegment(Slice(Transient.put(0), Transient.remove(1)).updateStats).assertGet
-      var segment2 = TestSegment(Slice(Transient.Range[FromValue, RangeValue](2, 3, None, Value.Remove(None, None))).updateStats).assertGet
+      var segment2 = TestSegment(Slice(Transient.Range[FromValue, RangeValue](2, 3, None, Value.remove(None, None))).updateStats).assertGet
       Segment.overlaps(segment1, segment2) shouldBe false
       Segment.overlaps(segment2, segment1) shouldBe false
       //range over range
-      segment1 = TestSegment(Slice(Transient.Range[FromValue, RangeValue](0, 1, None, Value.Remove(None, None))).updateStats).assertGet
+      segment1 = TestSegment(Slice(Transient.Range[FromValue, RangeValue](0, 1, None, Value.remove(None, None))).updateStats).assertGet
       Segment.overlaps(segment1, segment2) shouldBe false
       Segment.overlaps(segment2, segment1) shouldBe false
 
       //1 2
       //  2 3
       segment1 = TestSegment(Slice(Transient.put(1), Transient.remove(2)).updateStats).assertGet
-      segment2 = TestSegment(Slice(Transient.Range[FromValue, RangeValue](2, 3, None, Value.Remove(None, None))).updateStats).assertGet
+      segment2 = TestSegment(Slice(Transient.Range[FromValue, RangeValue](2, 3, None, Value.remove(None, None))).updateStats).assertGet
       Segment.overlaps(segment1, segment2) shouldBe true
       Segment.overlaps(segment2, segment1) shouldBe true
-      segment1 = TestSegment(Slice(Transient.Range[FromValue, RangeValue](1, 2, None, Value.Remove(None, None))).updateStats).assertGet
+      segment1 = TestSegment(Slice(Transient.Range[FromValue, RangeValue](1, 2, None, Value.remove(None, None))).updateStats).assertGet
       Segment.overlaps(segment1, segment2) shouldBe false
       Segment.overlaps(segment2, segment1) shouldBe false
 
       //1   3
       //  2 3
       segment1 = TestSegment(Slice(Transient.put(1), Transient.remove(3)).updateStats).assertGet
-      segment2 = TestSegment(Slice(Transient.Range[FromValue, RangeValue](2, 3, None, Value.Remove(None, None))).updateStats).assertGet
+      segment2 = TestSegment(Slice(Transient.Range[FromValue, RangeValue](2, 3, None, Value.remove(None, None))).updateStats).assertGet
       Segment.overlaps(segment1, segment2) shouldBe true
       Segment.overlaps(segment2, segment1) shouldBe true
-      segment1 = TestSegment(Slice(Transient.Range[FromValue, RangeValue](1, 3, None, Value.Remove(None, None))).updateStats).assertGet
+      segment1 = TestSegment(Slice(Transient.Range[FromValue, RangeValue](1, 3, None, Value.remove(None, None))).updateStats).assertGet
       Segment.overlaps(segment1, segment2) shouldBe true
       Segment.overlaps(segment2, segment1) shouldBe true
 
       //2 3
       //2 3
       segment1 = TestSegment(Slice(Transient.remove(2), Transient.put(3)).updateStats).assertGet
-      segment2 = TestSegment(Slice(Transient.Range[FromValue, RangeValue](2, 3, None, Value.Remove(None, None))).updateStats).assertGet
+      segment2 = TestSegment(Slice(Transient.Range[FromValue, RangeValue](2, 3, None, Value.remove(None, None))).updateStats).assertGet
       Segment.overlaps(segment1, segment2) shouldBe true
       Segment.overlaps(segment2, segment1) shouldBe true
-      segment1 = TestSegment(Slice(Transient.Range[FromValue, RangeValue](2, 3, None, Value.Remove(None, None))).updateStats).assertGet
+      segment1 = TestSegment(Slice(Transient.Range[FromValue, RangeValue](2, 3, None, Value.remove(None, None))).updateStats).assertGet
       Segment.overlaps(segment1, segment2) shouldBe true
       Segment.overlaps(segment2, segment1) shouldBe true
 
       //  3 4
       //2 3
       segment1 = TestSegment(Slice(Transient.remove(3), Transient.put(4)).updateStats).assertGet
-      segment2 = TestSegment(Slice(Transient.Range[FromValue, RangeValue](2, 3, None, Value.Remove(None, None))).updateStats).assertGet
+      segment2 = TestSegment(Slice(Transient.Range[FromValue, RangeValue](2, 3, None, Value.remove(None, None))).updateStats).assertGet
       Segment.overlaps(segment1, segment2) shouldBe false
       Segment.overlaps(segment2, segment1) shouldBe false
-      segment1 = TestSegment(Slice(Transient.Range[FromValue, RangeValue](3, 4, None, Value.Remove(None, None))).updateStats).assertGet
+      segment1 = TestSegment(Slice(Transient.Range[FromValue, RangeValue](3, 4, None, Value.remove(None, None))).updateStats).assertGet
       Segment.overlaps(segment1, segment2) shouldBe false
       Segment.overlaps(segment2, segment1) shouldBe false
 
       //    4 5
       //2 3
       segment1 = TestSegment(Slice(Transient.put(4), Transient.remove(5)).updateStats).assertGet
-      segment2 = TestSegment(Slice(Transient.Range[FromValue, RangeValue](2, 3, None, Value.Remove(None, None))).updateStats).assertGet
+      segment2 = TestSegment(Slice(Transient.Range[FromValue, RangeValue](2, 3, None, Value.remove(None, None))).updateStats).assertGet
       Segment.overlaps(segment1, segment2) shouldBe false
       Segment.overlaps(segment2, segment1) shouldBe false
-      segment1 = TestSegment(Slice(Transient.Range[FromValue, RangeValue](4, 5, None, Value.Remove(None, None))).updateStats).assertGet
+      segment1 = TestSegment(Slice(Transient.Range[FromValue, RangeValue](4, 5, None, Value.remove(None, None))).updateStats).assertGet
       Segment.overlaps(segment1, segment2) shouldBe false
       Segment.overlaps(segment2, segment1) shouldBe false
 
       //0       10
       //   2 3
       segment1 = TestSegment(Slice(Transient.remove(0), Transient.put(10)).updateStats).assertGet
-      segment2 = TestSegment(Slice(Transient.Range[FromValue, RangeValue](2, 3, None, Value.Remove(None, None))).updateStats).assertGet
+      segment2 = TestSegment(Slice(Transient.Range[FromValue, RangeValue](2, 3, None, Value.remove(None, None))).updateStats).assertGet
       Segment.overlaps(segment1, segment2) shouldBe true
       Segment.overlaps(segment2, segment1) shouldBe true
-      segment1 = TestSegment(Slice(Transient.Range[FromValue, RangeValue](0, 10, None, Value.Remove(None, None))).updateStats).assertGet
+      segment1 = TestSegment(Slice(Transient.Range[FromValue, RangeValue](0, 10, None, Value.remove(None, None))).updateStats).assertGet
       Segment.overlaps(segment1, segment2) shouldBe true
       Segment.overlaps(segment2, segment1) shouldBe true
 
       //   2 3
       //0       10
       segment1 = TestSegment(Slice(Transient.put(2), Transient.put(3)).updateStats).assertGet
-      segment2 = TestSegment(Slice(Transient.Range[FromValue, RangeValue](0, 10, None, Value.Remove(None, None))).updateStats).assertGet
+      segment2 = TestSegment(Slice(Transient.Range[FromValue, RangeValue](0, 10, None, Value.remove(None, None))).updateStats).assertGet
       Segment.overlaps(segment1, segment2) shouldBe true
       Segment.overlaps(segment2, segment1) shouldBe true
-      segment1 = TestSegment(Slice(Transient.Range[FromValue, RangeValue](2, 3, None, Value.Remove(None, None))).updateStats).assertGet
+      segment1 = TestSegment(Slice(Transient.Range[FromValue, RangeValue](2, 3, None, Value.remove(None, None))).updateStats).assertGet
       Segment.overlaps(segment1, segment2) shouldBe true
       Segment.overlaps(segment2, segment1) shouldBe true
 
@@ -578,7 +578,7 @@ sealed trait SegmentReadSpec extends TestBase with ScalaFutures with PrivateMeth
               case Fixed(maxKey) =>
                 Seq(Transient.put(segment.minKey), Transient.put(maxKey))
               case Range(fromKey, maxKey) =>
-                Seq(Transient.put(segment.minKey), Transient.Range[FromValue, RangeValue](fromKey, maxKey, None, Value.Update(maxKey)))
+                Seq(Transient.put(segment.minKey), Transient.Range[FromValue, RangeValue](fromKey, maxKey, None, Value.update(maxKey)))
             }
         }
 
@@ -834,9 +834,9 @@ sealed trait SegmentReadSpec extends TestBase with ScalaFutures with PrivateMeth
             Memory.remove(1, shuffledDeadlines(0)),
             Memory.put(2, 1, shuffledDeadlines(1)),
             Memory.update(3, 10, shuffledDeadlines(2)),
-            Memory.Range(4, 10, None, Value.Remove(shuffledDeadlines(3))),
-            Memory.Range(5, 10, Value.Put(10, shuffledDeadlines(4)), Value.Remove(shuffledDeadlines(5))),
-            Memory.Range(6, 10, Value.Put(10, shuffledDeadlines(6)), Value.Update(None, Some(shuffledDeadlines(7)), None))
+            Memory.Range(4, 10, None, Value.remove(shuffledDeadlines(3))),
+            Memory.Range(5, 10, Value.put(10, shuffledDeadlines(4)), Value.remove(shuffledDeadlines(5))),
+            Memory.Range(6, 10, Value.put(10, shuffledDeadlines(6)), Value.update(None, Some(shuffledDeadlines(7)), None))
           )
 
         Segment.getNearestDeadline(keyValues).assertGet shouldBe deadlines.head

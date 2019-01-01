@@ -71,12 +71,12 @@
 //      test(Slice(Transient.remove(1, 50.seconds, 0.1)))
 //      test(Slice(Transient.Update(1, 10)))
 //
-//      test(Slice(Transient.Range[FromValue, RangeValue](1, 10, None, Value.Remove(randomDeadlineOption, randomTimeOption))))
-//      test(Slice(Transient.Range[FromValue, RangeValue](1, 10, Some(Value.Remove(None, randomTimeOption)), Value.Remove(None, randomTimeOption))))
-//      test(Slice(Transient.Range[FromValue, RangeValue](1, 10, Some(Value.Put(1)), Value.Remove(None, randomTimeOption))))
-//      test(Slice(Transient.Range[FromValue, RangeValue](1, 10, None, Value.Update(1))))
-//      test(Slice(Transient.Range[FromValue, RangeValue](1, 10, Some(Value.Put(1)), Value.Update(10))))
-//      test(Slice(Transient.Range[FromValue, RangeValue](1, 10, Some(Value.Remove(None, randomTimeOption)), Value.Update(10))))
+//      test(Slice(Transient.Range[FromValue, RangeValue](1, 10, None, Value.remove(randomDeadlineOption, randomTimeOption))))
+//      test(Slice(Transient.Range[FromValue, RangeValue](1, 10, Some(Value.remove(None, randomTimeOption)), Value.remove(None, randomTimeOption))))
+//      test(Slice(Transient.Range[FromValue, RangeValue](1, 10, Some(Value.put(1)), Value.remove(None, randomTimeOption))))
+//      test(Slice(Transient.Range[FromValue, RangeValue](1, 10, None, Value.update(1))))
+//      test(Slice(Transient.Range[FromValue, RangeValue](1, 10, Some(Value.put(1)), Value.update(10))))
+//      test(Slice(Transient.Range[FromValue, RangeValue](1, 10, Some(Value.remove(None, randomTimeOption)), Value.update(10))))
 //      test(Slice(Transient.Group(Slice(Transient.put(1, value = 1)), randomCompression(), randomCompression(), 0.1, None).assertGet))
 //      test(Slice(Transient.Group(Slice(Transient.remove(1, 10.seconds, 0.1)), randomCompression(), randomCompression(), 0.1, None).assertGet))
 //      test(Slice(Transient.Group(Slice(Transient.Update(1, 1.seconds)), randomCompression(), randomCompression(), 0.1, None).assertGet))
@@ -85,12 +85,12 @@
 //      test(Slice(Transient.put("one", value = "one", 10.seconds)))
 //      test(Slice(Transient.put("one")))
 //      test(Slice(Transient.remove("one")))
-//      test(Slice(Transient.Range[FromValue, RangeValue]("one", "ten", None, Value.Remove(None, randomTimeOption))))
-//      test(Slice(Transient.Range[FromValue, RangeValue]("one", "ten", Some(Value.Remove(None, randomTimeOption)), Value.Remove(None, randomTimeOption))))
-//      test(Slice(Transient.Range[FromValue, RangeValue]("one", "ten", Some(Value.Put("one")), Value.Remove(None, randomTimeOption))))
-//      test(Slice(Transient.Range[FromValue, RangeValue]("one", "ten", None, Value.Update("one"))))
-//      test(Slice(Transient.Range[FromValue, RangeValue]("one", "ten", Some(Value.Put("one")), Value.Update("ten"))))
-//      test(Slice(Transient.Range[FromValue, RangeValue]("one", "ten", Some(Value.Remove(None, randomTimeOption)), Value.Update("ten"))))
+//      test(Slice(Transient.Range[FromValue, RangeValue]("one", "ten", None, Value.remove(None, randomTimeOption))))
+//      test(Slice(Transient.Range[FromValue, RangeValue]("one", "ten", Some(Value.remove(None, randomTimeOption)), Value.remove(None, randomTimeOption))))
+//      test(Slice(Transient.Range[FromValue, RangeValue]("one", "ten", Some(Value.put("one")), Value.remove(None, randomTimeOption))))
+//      test(Slice(Transient.Range[FromValue, RangeValue]("one", "ten", None, Value.update("one"))))
+//      test(Slice(Transient.Range[FromValue, RangeValue]("one", "ten", Some(Value.put("one")), Value.update("ten"))))
+//      test(Slice(Transient.Range[FromValue, RangeValue]("one", "ten", Some(Value.remove(None, randomTimeOption)), Value.update("ten"))))
 //      test(Slice(Transient.Group(Slice(Transient.put("one"), Transient.put("ten")).updateStats, randomCompression(), randomCompression(), 0.1, None).assertGet))
 //      test(Slice(Transient.Group(Slice(Transient.remove("one", 10.seconds, 0.1), Transient.remove("ten", 2.seconds, 0.1)).updateStats, randomCompression(), randomCompression(), 0.1, None).assertGet))
 //      test(Slice(Transient.Group(Slice(Transient.Update("one", 1.seconds), Transient.remove("ten")).updateStats, randomCompression(), randomCompression(), 0.1, None).assertGet))
@@ -99,37 +99,37 @@
 //      test(Slice(Transient.put(1, "one" * 10)))
 //      test(Slice(Transient.put("two" * 10)))
 //      test(Slice(Transient.remove("three" * 10)))
-//      test(Slice(Transient.Range[FromValue, RangeValue]("one" * 10, "ten" * 10, Some(Value.Put("one" * 10)), Value.Update("ten" * 10))))
+//      test(Slice(Transient.Range[FromValue, RangeValue]("one" * 10, "ten" * 10, Some(Value.put("one" * 10)), Value.update("ten" * 10))))
 //      test(Slice(Transient.Group(Slice(Transient.put("one" * 10), Transient.put("ten" * 10)).updateStats, randomCompression(), randomCompression(), 0.1, None).assertGet))
 //
 //      //put key values variations
 //      test(Slice(Transient.put(1, 1), Transient.remove(2)).updateStats)
 //      test(Slice(Transient.put(1, 1), Transient.put(2, 2)).updateStats)
 //      test(Slice(Transient.put(1, 1, 1.day), Transient.remove(2, 2.days, 0.1)).updateStats)
-//      test(Slice(Transient.put(1, 1), Transient.Range[FromValue, RangeValue](2, 10, None, Value.Update(10))).updateStats)
-//      test(Slice(Transient.put(1, 1), Transient.Range[FromValue, RangeValue](2, 10, Some(Value.Put(2)), Value.Update(10))).updateStats)
-//      test(Slice(Transient.put(1, 1), Transient.Range[FromValue, RangeValue](2, 10, Some(Value.Remove(None, randomTimeOption)), Value.Update(10))).updateStats)
-//      test(Slice(Transient.put(1, 1), Transient.Range[FromValue, RangeValue](2, 10, None, Value.Remove(None, randomTimeOption))).updateStats)
-//      test(Slice(Transient.put(1, 1), Transient.Range[FromValue, RangeValue](2, 10, Some(Value.Put(2)), Value.Remove(None, randomTimeOption))).updateStats)
-//      test(Slice(Transient.put(1, 1), Transient.Range[FromValue, RangeValue](2, 10, Some(Value.Remove(None, randomTimeOption)), Value.Remove(None, randomTimeOption))).updateStats)
+//      test(Slice(Transient.put(1, 1), Transient.Range[FromValue, RangeValue](2, 10, None, Value.update(10))).updateStats)
+//      test(Slice(Transient.put(1, 1), Transient.Range[FromValue, RangeValue](2, 10, Some(Value.put(2)), Value.update(10))).updateStats)
+//      test(Slice(Transient.put(1, 1), Transient.Range[FromValue, RangeValue](2, 10, Some(Value.remove(None, randomTimeOption)), Value.update(10))).updateStats)
+//      test(Slice(Transient.put(1, 1), Transient.Range[FromValue, RangeValue](2, 10, None, Value.remove(None, randomTimeOption))).updateStats)
+//      test(Slice(Transient.put(1, 1), Transient.Range[FromValue, RangeValue](2, 10, Some(Value.put(2)), Value.remove(None, randomTimeOption))).updateStats)
+//      test(Slice(Transient.put(1, 1), Transient.Range[FromValue, RangeValue](2, 10, Some(Value.remove(None, randomTimeOption)), Value.remove(None, randomTimeOption))).updateStats)
 //
 //      //remove key values variations
 //      test(Slice(Transient.remove(1), Transient.remove(2)).updateStats)
 //      test(Slice(Transient.remove(1), Transient.put(2, 2)).updateStats)
 //      test(Slice(Transient.remove(1, 1.day, 0.1), Transient.put(2, 2, 1.day)).updateStats)
 //      test(Slice(Transient.remove(1, 10000.days, 0.1), Transient.remove(2, 10000.days, 0.1)).updateStats)
-//      test(Slice(Transient.remove(1), Transient.Range[FromValue, RangeValue](2, 10, None, Value.Update(10))).updateStats)
-//      test(Slice(Transient.remove(1), Transient.Range[FromValue, RangeValue](2, 10, Some(Value.Update(2)), Value.Update(10))).updateStats)
-//      test(Slice(Transient.remove(1), Transient.Range[FromValue, RangeValue](2, 10, Some(Value.Remove(None, randomTimeOption)), Value.Update(10))).updateStats)
-//      test(Slice(Transient.remove(1), Transient.Range[FromValue, RangeValue](2, 10, None, Value.Remove(None, randomTimeOption))).updateStats)
-//      test(Slice(Transient.remove(1), Transient.Range[FromValue, RangeValue](2, 10, Some(Value.Put(2)), Value.Remove(None, randomTimeOption))).updateStats)
-//      test(Slice(Transient.remove(1), Transient.Range[FromValue, RangeValue](2, 10, Some(Value.Remove(None, randomTimeOption)), Value.Remove(None, randomTimeOption))).updateStats)
+//      test(Slice(Transient.remove(1), Transient.Range[FromValue, RangeValue](2, 10, None, Value.update(10))).updateStats)
+//      test(Slice(Transient.remove(1), Transient.Range[FromValue, RangeValue](2, 10, Some(Value.update(2)), Value.update(10))).updateStats)
+//      test(Slice(Transient.remove(1), Transient.Range[FromValue, RangeValue](2, 10, Some(Value.remove(None, randomTimeOption)), Value.update(10))).updateStats)
+//      test(Slice(Transient.remove(1), Transient.Range[FromValue, RangeValue](2, 10, None, Value.remove(None, randomTimeOption))).updateStats)
+//      test(Slice(Transient.remove(1), Transient.Range[FromValue, RangeValue](2, 10, Some(Value.put(2)), Value.remove(None, randomTimeOption))).updateStats)
+//      test(Slice(Transient.remove(1), Transient.Range[FromValue, RangeValue](2, 10, Some(Value.remove(None, randomTimeOption)), Value.remove(None, randomTimeOption))).updateStats)
 //
 //      runThis(10.times) {
 //        test(Slice(Transient.Group(randomizedIntKeyValues(keyValueCount, startId = Some(1)), randomCompression(), randomCompression(), 0.1, None).assertGet))
 //      }
 //
-//      test(Slice(Transient.remove(1), Transient.put(2), Transient.remove(3), Transient.remove(4), Transient.Range[FromValue, RangeValue](5, 10, Some(Value.Put(10)), Value.Remove(None, randomTimeOption))).updateStats)
+//      test(Slice(Transient.remove(1), Transient.put(2), Transient.remove(3), Transient.remove(4), Transient.Range[FromValue, RangeValue](5, 10, Some(Value.put(10)), Value.remove(None, randomTimeOption))).updateStats)
 //
 //      test(Slice(Transient.put(1, 1), Transient.put(2, 2), Transient.put(3, 3)).updateStats)
 //      test(Slice(Transient.put(1), Transient.put(2), Transient.put(3)).updateStats)
@@ -139,12 +139,12 @@
 //      test(Slice(Transient.remove(1), Transient.put(2, 2), Transient.put(3)).updateStats)
 //      test(
 //        Slice(
-//          Transient.Range[FromValue, RangeValue](1, 10, None, Value.Remove(None, randomTimeOption)),
-//          Transient.Range[FromValue, RangeValue](10, 20, Some(Value.Remove(None, randomTimeOption)), Value.Remove(None, randomTimeOption)),
-//          Transient.Range[FromValue, RangeValue](20, 30, Some(Value.Put(1)), Value.Remove(None, randomTimeOption)),
-//          Transient.Range[FromValue, RangeValue](30, 40, None, Value.Update(1)),
-//          Transient.Range[FromValue, RangeValue](40, 50, Some(Value.Put(1)), Value.Update(10)),
-//          Transient.Range[FromValue, RangeValue](50, 60, Some(Value.Remove(None, randomTimeOption)), Value.Update(10))
+//          Transient.Range[FromValue, RangeValue](1, 10, None, Value.remove(None, randomTimeOption)),
+//          Transient.Range[FromValue, RangeValue](10, 20, Some(Value.remove(None, randomTimeOption)), Value.remove(None, randomTimeOption)),
+//          Transient.Range[FromValue, RangeValue](20, 30, Some(Value.put(1)), Value.remove(None, randomTimeOption)),
+//          Transient.Range[FromValue, RangeValue](30, 40, None, Value.update(1)),
+//          Transient.Range[FromValue, RangeValue](40, 50, Some(Value.put(1)), Value.update(10)),
+//          Transient.Range[FromValue, RangeValue](50, 60, Some(Value.remove(None, randomTimeOption)), Value.update(10))
 //        ).updateStats
 //      )
 //    }
@@ -213,9 +213,9 @@
 //          Transient.put(Slice(s"a$randomChars".getBytes()), value = randomChars),
 //          Transient.remove(Slice(s"b$randomChars".getBytes())),
 //          Transient.put(Slice(s"c$randomChars".getBytes()), value = randomChars, 1000.days),
-//          Transient.Range[FromValue, RangeValue](fromKey = Slice(s"d$randomChars".getBytes()), toKey = Slice(s"e$randomChars".getBytes()), randomFromValueOption(), Value.Update(randomChars)),
-//          Transient.Range[FromValue, RangeValue](fromKey = Slice(s"f$randomChars".getBytes()), toKey = Slice(s"g$randomChars".getBytes()), Some(Value.Put(randomChars)), Value.Update(randomChars)),
-//          Transient.Range[FromValue, RangeValue](fromKey = Slice(s"h$randomChars".getBytes()), toKey = Slice(s"i$randomChars".getBytes()), randomFromValueOption(), Value.Update(randomChars)),
+//          Transient.Range[FromValue, RangeValue](fromKey = Slice(s"d$randomChars".getBytes()), toKey = Slice(s"e$randomChars".getBytes()), randomFromValueOption(), Value.update(randomChars)),
+//          Transient.Range[FromValue, RangeValue](fromKey = Slice(s"f$randomChars".getBytes()), toKey = Slice(s"g$randomChars".getBytes()), Some(Value.put(randomChars)), Value.update(randomChars)),
+//          Transient.Range[FromValue, RangeValue](fromKey = Slice(s"h$randomChars".getBytes()), toKey = Slice(s"i$randomChars".getBytes()), randomFromValueOption(), Value.update(randomChars)),
 //          Transient.Group(Slice(Memory.put(s"j$randomChars"), Memory.put(s"k$randomChars")).toTransient, randomCompression(), randomCompression(), 0.1, None).assertGet
 //        ).updateStats
 //
@@ -316,10 +316,10 @@
 //            randomFixedKeyValue(1).toTransient,
 //            randomFixedKeyValue(2).toTransient,
 //            Transient.Group(Slice(randomFixedKeyValue(3)).toTransient, randomCompression(), randomCompression(), 0.1, None).assertGet,
-//            Transient.Range[FromValue, RangeValue](4, 8, randomFromValueOption(), Value.Update(10)),
+//            Transient.Range[FromValue, RangeValue](4, 8, randomFromValueOption(), Value.update(10)),
 //            //also add a Range key-value to the Group that does NOT contain a remove range.
-//            Transient.Group(Slice(randomFixedKeyValue(10), randomRangeKeyValue(12, 15, rangeValue = Value.Update(10))).toTransient, randomCompression(), randomCompression(), 0.1, None).assertGet,
-//            Transient.Range[FromValue, RangeValue](20, 21, randomFromValueOption(), Value.Update(10))
+//            Transient.Group(Slice(randomFixedKeyValue(10), randomRangeKeyValue(12, 15, rangeValue = Value.update(10))).toTransient, randomCompression(), randomCompression(), 0.1, None).assertGet,
+//            Transient.Range[FromValue, RangeValue](20, 21, randomFromValueOption(), Value.update(10))
 //          ).updateStats
 //        )
 //      }
@@ -346,11 +346,11 @@
 //            randomFixedKeyValue(1).toTransient,
 //            randomFixedKeyValue(2).toTransient,
 //            Transient.Group(Slice(randomFixedKeyValue(3)).toTransient, randomCompression(), randomCompression(), 0.1, None).assertGet,
-//            Transient.Range[FromValue, RangeValue](4, 8, randomFromValueOption(), Value.Update(10)),
+//            Transient.Range[FromValue, RangeValue](4, 8, randomFromValueOption(), Value.update(10)),
 //            //also add a Group or a Range key-value that contains a remove range.
 //            eitherOne(
-//              left = Transient.Group(Slice(randomFixedKeyValue(10), randomRangeKeyValue(12, 15, rangeValue = Value.Remove(randomDeadlineOption, randomTimeOption))).toTransient, randomCompression(), randomCompression(), 0.1, None).assertGet,
-//              right = Transient.Range[FromValue, RangeValue](20, 21, randomFromValueOption(), Value.Remove(randomDeadlineOption, randomTimeOption))
+//              left = Transient.Group(Slice(randomFixedKeyValue(10), randomRangeKeyValue(12, 15, rangeValue = Value.remove(randomDeadlineOption, randomTimeOption))).toTransient, randomCompression(), randomCompression(), 0.1, None).assertGet,
+//              right = Transient.Range[FromValue, RangeValue](20, 21, randomFromValueOption(), Value.remove(randomDeadlineOption, randomTimeOption))
 //            )
 //          ).updateStats
 //        )
@@ -379,7 +379,7 @@
 //          Slice(
 //            randomFixedKeyValue(1).toTransient,
 //            randomFixedKeyValue(2).toTransient,
-//            Transient.Group(Slice(randomFixedKeyValue(10), randomRangeKeyValue(12, 15, rangeValue = Value.Update(1))).toTransient, randomCompression(), randomCompression(), 0.1, None).assertGet
+//            Transient.Group(Slice(randomFixedKeyValue(10), randomRangeKeyValue(12, 15, rangeValue = Value.update(1))).toTransient, randomCompression(), randomCompression(), 0.1, None).assertGet
 //          ).updateStats
 //        )
 //      }
@@ -446,7 +446,7 @@
 //          Slice(
 //            randomFixedKeyValue(1).toTransient,
 //            randomFixedKeyValue(2).toTransient,
-//            Transient.Group(Slice(randomPutKeyValue(10, Some("val")), randomRangeKeyValue(12, 15, rangeValue = Value.Update(1))).toTransient, keyCompression, valueCompression, 0.1, None).assertGet
+//            Transient.Group(Slice(randomPutKeyValue(10, Some("val")), randomRangeKeyValue(12, 15, rangeValue = Value.update(1))).toTransient, keyCompression, valueCompression, 0.1, None).assertGet
 //          ).updateStats
 //        )
 //      }
@@ -481,7 +481,7 @@
 //          Slice(
 //            randomFixedKeyValue(1).toTransient,
 //            randomFixedKeyValue(2).toTransient,
-//            Transient.Group(Slice(randomPutKeyValue(10, Some("val")), randomRangeKeyValue(12, 15, rangeValue = Value.Remove(None, randomTimeOption))).toTransient, keyCompression, valueCompression, 0.1, None).assertGet
+//            Transient.Group(Slice(randomPutKeyValue(10, Some("val")), randomRangeKeyValue(12, 15, rangeValue = Value.remove(None, randomTimeOption))).toTransient, keyCompression, valueCompression, 0.1, None).assertGet
 //          ).updateStats
 //        )
 //      }
@@ -495,8 +495,8 @@
 //          Transient.put(1, "one"),
 //          Transient.put(2, "two"),
 //          Transient.remove(Int.MaxValue - 1000),
-//          Transient.Range[FromValue, RangeValue](Int.MaxValue - 900, Int.MaxValue - 800, None, Value.Update(10)),
-//          Transient.Group(Slice(randomPutKeyValue(Int.MaxValue - 600, Some("val")), randomRangeKeyValue(Int.MaxValue - 500, Int.MaxValue - 400, rangeValue = Value.Remove(None, randomTimeOption))).toTransient, randomCompression(), randomCompression(), 0.1, None).assertGet
+//          Transient.Range[FromValue, RangeValue](Int.MaxValue - 900, Int.MaxValue - 800, None, Value.update(10)),
+//          Transient.Group(Slice(randomPutKeyValue(Int.MaxValue - 600, Some("val")), randomRangeKeyValue(Int.MaxValue - 500, Int.MaxValue - 400, rangeValue = Value.remove(None, randomTimeOption))).toTransient, randomCompression(), randomCompression(), 0.1, None).assertGet
 //        ).updateStats
 //
 //      val (bytes, _) = SegmentWriter.write(keyValues, 0.1).assertGet
@@ -565,7 +565,7 @@
 //          Transient.put(1, "one"),
 //          Transient.put(2, "two", 10.days),
 //          Transient.remove(Int.MaxValue - 10),
-//          Transient.Range[FromValue, RangeValue](Int.MaxValue - 9, Int.MaxValue, None, Value.Update(10))
+//          Transient.Range[FromValue, RangeValue](Int.MaxValue - 9, Int.MaxValue, None, Value.update(10))
 //        ).updateStats
 //
 //      val (bytes, _) = SegmentWriter.write(keyValues, 0.1).assertGet
@@ -605,7 +605,7 @@
 //          Transient.put(1, "one"),
 //          Transient.put(2, "two", 2.days),
 //          Transient.remove(Int.MaxValue - 10),
-//          Transient.Range[FromValue, RangeValue](Int.MaxValue - 9, Int.MaxValue, None, Value.Update(10))
+//          Transient.Range[FromValue, RangeValue](Int.MaxValue - 9, Int.MaxValue, None, Value.update(10))
 //        ).updateStats
 //
 //      val (bytes, _) = SegmentWriter.write(keyValues, 0.1).assertGet

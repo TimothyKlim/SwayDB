@@ -57,7 +57,7 @@ class GroupCompressorSpec extends TestBase {
           val keyValue =
             eitherOne(
               randomFixedKeyValue(1, eitherOne(None, Some(2))),
-              randomRangeKeyValue(1, 2, randomFromValueOption(), rangeValue = Value.Update(2, randomDeadlineOption))
+              randomRangeKeyValue(1, 2, randomFromValueOption(), rangeValue = Value.update(2, randomDeadlineOption))
             )
 
           //println("Testing for key-values: " + keyValue)
@@ -77,7 +77,7 @@ class GroupCompressorSpec extends TestBase {
           val keyValue =
             eitherOne(
               randomFixedKeyValue("12345" * 20, eitherOne(None, Some("12345" * 20))),
-              randomRangeKeyValue("12345", "12345" * 20, randomFromValueOption(), rangeValue = Value.Update("12345" * 30, randomDeadlineOption))
+              randomRangeKeyValue("12345", "12345" * 20, randomFromValueOption(), rangeValue = Value.update("12345" * 30, randomDeadlineOption))
             )
 
           //println("Testing for key-values: " + keyValue)

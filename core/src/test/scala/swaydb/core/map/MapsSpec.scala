@@ -110,7 +110,7 @@ class MapsSpec extends TestBase {
     "initialise a new map if the current map is full" in {
       def test(maps: Maps[Slice[Byte], Memory.SegmentResponse]) = {
         maps.write(MapEntry.Put(1, Memory.put(1))).assertGet //entry size is 36.bytes
-        maps.write(MapEntry.Put(2: Slice[Byte], Memory.Range(2, 2, None, Value.Update(2)))).assertGet //another 46.bytes
+        maps.write(MapEntry.Put(2: Slice[Byte], Memory.Range(2, 2, None, Value.update(2)))).assertGet //another 46.bytes
         maps.queuedMapsCountWithCurrent shouldBe 1
         //another 32.bytes but map has total size of 82.bytes.
         //now since the Map is overflow a new should get created.

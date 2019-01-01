@@ -46,8 +46,8 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
     "Range Update(None, None) Update(None, None) - Left" in {
       assertMerge(
         newKeyValue = Memory.update(1, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(None, None, None), Value.Update(None, None, None)),
-        expected = Memory.Range(1, 10, Value.Update(None, None, None), Value.Update(None, None, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(None, None, None), Value.update(None, None, None)),
+        expected = Memory.Range(1, 10, Value.update(None, None, None), Value.update(None, None, None)),
         lastLevelExpect = None,
         hasTimeLeftAtLeast = 10.seconds
       )
@@ -56,10 +56,10 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
     "Range Update(None, None) Update(None, None) - Mid" in {
       assertMerge(
         newKeyValue = Memory.update(5, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(None, None, None), Value.Update(None, None, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(None, None, None), Value.update(None, None, None)),
         expected = Slice(
-          Memory.Range(1, 5, Value.Update(None, None, None), Value.Update(None, None, None)),
-          Memory.Range(5, 10, Value.Update(None, None, None), Value.Update(None, None, None))
+          Memory.Range(1, 5, Value.update(None, None, None), Value.update(None, None, None)),
+          Memory.Range(5, 10, Value.update(None, None, None), Value.update(None, None, None))
         ),
         lastLevelExpect = Slice.empty,
         hasTimeLeftAtLeast = 10.seconds
@@ -69,9 +69,9 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
     "Range Update(None, None) Update(None, None) - Right" in {
       assertMerge(
         newKeyValue = Memory.update(10, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(None, None, None), Value.Update(None, None, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(None, None, None), Value.update(None, None, None)),
         expected = Slice(
-          Memory.Range(1, 10, Value.Update(None, None, None), Value.Update(None, None, None)),
+          Memory.Range(1, 10, Value.update(None, None, None), Value.update(None, None, None)),
           Memory.update(10, None, None)
         ),
         lastLevelExpect = Slice.empty,
@@ -88,8 +88,8 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
       val deadline = Some(20.seconds.fromNow)
       assertMerge(
         newKeyValue = Memory.update(1, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(None, None, None), Value.Update(None, deadline, None)),
-        expected = Memory.Range(1, 10, Value.Update(None, None, None), Value.Update(None, deadline, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(None, None, None), Value.update(None, deadline, None)),
+        expected = Memory.Range(1, 10, Value.update(None, None, None), Value.update(None, deadline, None)),
         lastLevelExpect = None,
         hasTimeLeftAtLeast = 10.seconds
       )
@@ -99,10 +99,10 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
       val deadline = Some(20.seconds.fromNow)
       assertMerge(
         newKeyValue = Memory.update(5, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(None, None, None), Value.Update(None, deadline, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(None, None, None), Value.update(None, deadline, None)),
         expected = Slice(
-          Memory.Range(1, 5, Value.Update(None, None, None), Value.Update(None, deadline, None)),
-          Memory.Range(5, 10, Value.Update(None, deadline, None), Value.Update(None, deadline, None))
+          Memory.Range(1, 5, Value.update(None, None, None), Value.update(None, deadline, None)),
+          Memory.Range(5, 10, Value.update(None, deadline, None), Value.update(None, deadline, None))
         ),
         lastLevelExpect = Slice.empty,
         hasTimeLeftAtLeast = 10.seconds
@@ -114,9 +114,9 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(10, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(None, None, None), Value.Update(None, deadline, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(None, None, None), Value.update(None, deadline, None)),
         expected = Slice(
-          Memory.Range(1, 10, Value.Update(None, None, None), Value.Update(None, deadline, None)),
+          Memory.Range(1, 10, Value.update(None, None, None), Value.update(None, deadline, None)),
           Memory.update(10, None, None)
         ),
         lastLevelExpect = Slice.empty,
@@ -130,8 +130,8 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
       val deadline = Some(1.seconds.fromNow)
       assertMerge(
         newKeyValue = Memory.update(1, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(None, None, None), Value.Update(None, deadline, None)),
-        expected = Memory.Range(1, 10, Value.Update(None, None, None), Value.Update(None, deadline, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(None, None, None), Value.update(None, deadline, None)),
+        expected = Memory.Range(1, 10, Value.update(None, None, None), Value.update(None, deadline, None)),
         lastLevelExpect = None,
         hasTimeLeftAtLeast = 10.seconds
       )
@@ -141,10 +141,10 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
       val deadline = Some(1.seconds.fromNow)
       assertMerge(
         newKeyValue = Memory.update(5, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(None, None, None), Value.Update(None, deadline, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(None, None, None), Value.update(None, deadline, None)),
         expected = Slice(
-          Memory.Range(1, 5, Value.Update(None, None, None), Value.Update(None, deadline, None)),
-          Memory.Range(5, 10, Value.Update(None, deadline, None), Value.Update(None, deadline, None))
+          Memory.Range(1, 5, Value.update(None, None, None), Value.update(None, deadline, None)),
+          Memory.Range(5, 10, Value.update(None, deadline, None), Value.update(None, deadline, None))
         ),
         lastLevelExpect = Slice.empty,
         hasTimeLeftAtLeast = 10.seconds
@@ -156,9 +156,9 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(10, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(None, None, None), Value.Update(None, deadline, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(None, None, None), Value.update(None, deadline, None)),
         expected = Slice(
-          Memory.Range(1, 10, Value.Update(None, None, None), Value.Update(None, deadline, None)),
+          Memory.Range(1, 10, Value.update(None, None, None), Value.update(None, deadline, None)),
           Memory.update(10, None, None)
         ),
         lastLevelExpect = Slice.empty,
@@ -172,8 +172,8 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
       val deadline = Some(expiredDeadline())
       assertMerge(
         newKeyValue = Memory.update(1, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(None, None, None), Value.Update(None, deadline, None)),
-        expected = Memory.Range(1, 10, Value.Update(None, None, None), Value.Update(None, deadline, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(None, None, None), Value.update(None, deadline, None)),
+        expected = Memory.Range(1, 10, Value.update(None, None, None), Value.update(None, deadline, None)),
         lastLevelExpect = None,
         hasTimeLeftAtLeast = 10.seconds
       )
@@ -183,10 +183,10 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
       val deadline = Some(expiredDeadline())
       assertMerge(
         newKeyValue = Memory.update(5, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(None, None, None), Value.Update(None, deadline, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(None, None, None), Value.update(None, deadline, None)),
         expected = Slice(
-          Memory.Range(1, 5, Value.Update(None, None, None), Value.Update(None, deadline, None)),
-          Memory.Range(5, 10, Value.Update(None, deadline, None), Value.Update(None, deadline, None))
+          Memory.Range(1, 5, Value.update(None, None, None), Value.update(None, deadline, None)),
+          Memory.Range(5, 10, Value.update(None, deadline, None), Value.update(None, deadline, None))
         ),
         lastLevelExpect = Slice.empty,
         hasTimeLeftAtLeast = 10.seconds
@@ -198,9 +198,9 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(10, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(None, None, None), Value.Update(None, deadline, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(None, None, None), Value.update(None, deadline, None)),
         expected = Slice(
-          Memory.Range(1, 10, Value.Update(None, None, None), Value.Update(None, deadline, None)),
+          Memory.Range(1, 10, Value.update(None, None, None), Value.update(None, deadline, None)),
           Memory.update(10, None, None)
         ),
         lastLevelExpect = Slice.empty,
@@ -217,8 +217,8 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(1, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(None, None, None), Value.Update(1, None)),
-        expected = Memory.Range(1, 10, Value.Update(None, None, None), Value.Update(1, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(None, None, None), Value.update(1, None)),
+        expected = Memory.Range(1, 10, Value.update(None, None, None), Value.update(1, None)),
         lastLevelExpect = None,
         hasTimeLeftAtLeast = 10.seconds
       )
@@ -227,10 +227,10 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
     "Range Update(None, None) Update(Some, None) - Mid" in {
       assertMerge(
         newKeyValue = Memory.update(5, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(None, None, None), Value.Update(1, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(None, None, None), Value.update(1, None)),
         expected = Slice(
-          Memory.Range(1, 5, Value.Update(None, None, None), Value.Update(1, None)),
-          Memory.Range(5, 10, Value.Update(None, None, None), Value.Update(1, None))
+          Memory.Range(1, 5, Value.update(None, None, None), Value.update(1, None)),
+          Memory.Range(5, 10, Value.update(None, None, None), Value.update(1, None))
         ),
         lastLevelExpect = Slice.empty,
         hasTimeLeftAtLeast = 10.seconds
@@ -240,9 +240,9 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
     "Range Update(None, None) Update(Some, None) - Right" in {
       assertMerge(
         newKeyValue = Memory.update(10, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(None, None, None), Value.Update(1, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(None, None, None), Value.update(1, None)),
         expected = Slice(
-          Memory.Range(1, 10, Value.Update(None, None, None), Value.Update(1, None)),
+          Memory.Range(1, 10, Value.update(None, None, None), Value.update(1, None)),
           Memory.update(10, None, None)
         ),
         lastLevelExpect = Slice.empty,
@@ -260,8 +260,8 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(1, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(None, None, None), Value.Update(1, deadline)),
-        expected = Memory.Range(1, 10, Value.Update(None, None, None), Value.Update(1, deadline)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(None, None, None), Value.update(1, deadline)),
+        expected = Memory.Range(1, 10, Value.update(None, None, None), Value.update(1, deadline)),
         lastLevelExpect = None,
         hasTimeLeftAtLeast = 10.seconds
       )
@@ -272,10 +272,10 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(5, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(None, None, None), Value.Update(1, deadline)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(None, None, None), Value.update(1, deadline)),
         expected = Slice(
-          Memory.Range(1, 5, Value.Update(None, None, None), Value.Update(1, deadline)),
-          Memory.Range(5, 10, Value.Update(None, deadline, None), Value.Update(1, deadline))
+          Memory.Range(1, 5, Value.update(None, None, None), Value.update(1, deadline)),
+          Memory.Range(5, 10, Value.update(None, deadline, None), Value.update(1, deadline))
         ),
         lastLevelExpect = Slice.empty,
         hasTimeLeftAtLeast = 10.seconds
@@ -287,9 +287,9 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(10, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(None, None, None), Value.Update(1, deadline)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(None, None, None), Value.update(1, deadline)),
         expected = Slice(
-          Memory.Range(1, 10, Value.Update(None, None, None), Value.Update(1, deadline)),
+          Memory.Range(1, 10, Value.update(None, None, None), Value.update(1, deadline)),
           Memory.update(10, None, None)
         ),
         lastLevelExpect = Slice.empty,
@@ -304,8 +304,8 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(1, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(None, None, None), Value.Update(1, deadline)),
-        expected = Memory.Range(1, 10, Value.Update(None, None, None), Value.Update(1, deadline)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(None, None, None), Value.update(1, deadline)),
+        expected = Memory.Range(1, 10, Value.update(None, None, None), Value.update(1, deadline)),
         lastLevelExpect = None,
         hasTimeLeftAtLeast = 10.seconds
       )
@@ -316,10 +316,10 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(5, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(None, None, None), Value.Update(1, deadline)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(None, None, None), Value.update(1, deadline)),
         expected = Slice(
-          Memory.Range(1, 5, Value.Update(None, None, None), Value.Update(1, deadline)),
-          Memory.Range(5, 10, Value.Update(None, deadline, None), Value.Update(1, deadline))
+          Memory.Range(1, 5, Value.update(None, None, None), Value.update(1, deadline)),
+          Memory.Range(5, 10, Value.update(None, deadline, None), Value.update(1, deadline))
         ),
         lastLevelExpect = Slice.empty,
         hasTimeLeftAtLeast = 10.seconds
@@ -331,9 +331,9 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(10, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(None, None, None), Value.Update(1, deadline)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(None, None, None), Value.update(1, deadline)),
         expected = Slice(
-          Memory.Range(1, 10, Value.Update(None, None, None), Value.Update(1, deadline)),
+          Memory.Range(1, 10, Value.update(None, None, None), Value.update(1, deadline)),
           Memory.update(10, None, None)
         ),
         lastLevelExpect = Slice.empty,
@@ -348,8 +348,8 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(1, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(None, None, None), Value.Update(1, deadline)),
-        expected = Memory.Range(1, 10, Value.Update(None, None, None), Value.Update(1, deadline)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(None, None, None), Value.update(1, deadline)),
+        expected = Memory.Range(1, 10, Value.update(None, None, None), Value.update(1, deadline)),
         lastLevelExpect = None,
         hasTimeLeftAtLeast = 10.seconds
       )
@@ -360,10 +360,10 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(5, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(None, None, None), Value.Update(1, deadline)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(None, None, None), Value.update(1, deadline)),
         expected = Slice(
-          Memory.Range(1, 5, Value.Update(None, None, None), Value.Update(1, deadline)),
-          Memory.Range(5, 10, Value.Update(None, deadline, None), Value.Update(1, deadline))
+          Memory.Range(1, 5, Value.update(None, None, None), Value.update(1, deadline)),
+          Memory.Range(5, 10, Value.update(None, deadline, None), Value.update(1, deadline))
         ),
         lastLevelExpect = Slice.empty,
         hasTimeLeftAtLeast = 10.seconds
@@ -375,9 +375,9 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(10, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(None, None, None), Value.Update(1, deadline)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(None, None, None), Value.update(1, deadline)),
         expected = Slice(
-          Memory.Range(1, 10, Value.Update(None, None, None), Value.Update(1, deadline)),
+          Memory.Range(1, 10, Value.update(None, None, None), Value.update(1, deadline)),
           Memory.update(10, None, None)
         ),
         lastLevelExpect = Slice.empty,
@@ -395,8 +395,8 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
       val deadline = Some(20.seconds.fromNow)
       assertMerge(
         newKeyValue = Memory.update(1, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(None, deadline, None), Value.Update(None, None, None)),
-        expected = Memory.Range(1, 10, Value.Update(None, deadline, None), Value.Update(None, None, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(None, deadline, None), Value.update(None, None, None)),
+        expected = Memory.Range(1, 10, Value.update(None, deadline, None), Value.update(None, None, None)),
         lastLevelExpect = None,
         hasTimeLeftAtLeast = 10.seconds
       )
@@ -407,10 +407,10 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(5, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(None, deadline, None), Value.Update(None, None, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(None, deadline, None), Value.update(None, None, None)),
         expected = Slice(
-          Memory.Range(1, 5, Value.Update(None, deadline, None), Value.Update(None, None, None)),
-          Memory.Range(5, 10, Value.Update(None, None, None), Value.Update(None, None, None))
+          Memory.Range(1, 5, Value.update(None, deadline, None), Value.update(None, None, None)),
+          Memory.Range(5, 10, Value.update(None, None, None), Value.update(None, None, None))
         ),
         lastLevelExpect = Slice.empty,
         hasTimeLeftAtLeast = 10.seconds
@@ -422,9 +422,9 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(10, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(None, deadline, None), Value.Update(None, None, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(None, deadline, None), Value.update(None, None, None)),
         expected = Slice(
-          Memory.Range(1, 10, Value.Update(None, deadline, None), Value.Update(None, None, None)),
+          Memory.Range(1, 10, Value.update(None, deadline, None), Value.update(None, None, None)),
           Memory.update(10, None, None)
         ),
         lastLevelExpect = Slice.empty,
@@ -438,8 +438,8 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
       val deadline = Some(5.seconds.fromNow)
       assertMerge(
         newKeyValue = Memory.update(1, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(None, deadline, None), Value.Update(None, None, None)),
-        expected = Memory.Range(1, 10, Value.Update(None, deadline, None), Value.Update(None, None, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(None, deadline, None), Value.update(None, None, None)),
+        expected = Memory.Range(1, 10, Value.update(None, deadline, None), Value.update(None, None, None)),
         lastLevelExpect = None,
         hasTimeLeftAtLeast = 10.seconds
       )
@@ -450,10 +450,10 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(5, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(None, deadline, None), Value.Update(None, None, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(None, deadline, None), Value.update(None, None, None)),
         expected = Slice(
-          Memory.Range(1, 5, Value.Update(None, deadline, None), Value.Update(None, None, None)),
-          Memory.Range(5, 10, Value.Update(None, None, None), Value.Update(None, None, None))
+          Memory.Range(1, 5, Value.update(None, deadline, None), Value.update(None, None, None)),
+          Memory.Range(5, 10, Value.update(None, None, None), Value.update(None, None, None))
         ),
         lastLevelExpect = Slice.empty,
         hasTimeLeftAtLeast = 10.seconds
@@ -465,9 +465,9 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(10, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(None, deadline, None), Value.Update(None, None, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(None, deadline, None), Value.update(None, None, None)),
         expected = Slice(
-          Memory.Range(1, 10, Value.Update(None, deadline, None), Value.Update(None, None, None)),
+          Memory.Range(1, 10, Value.update(None, deadline, None), Value.update(None, None, None)),
           Memory.update(10, None, None)
         ),
         lastLevelExpect = Slice.empty,
@@ -481,8 +481,8 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
       val deadline = Some(expiredDeadline())
       assertMerge(
         newKeyValue = Memory.update(1, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(None, deadline, None), Value.Update(None, None, None)),
-        expected = Memory.Range(1, 10, Value.Update(None, deadline, None), Value.Update(None, None, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(None, deadline, None), Value.update(None, None, None)),
+        expected = Memory.Range(1, 10, Value.update(None, deadline, None), Value.update(None, None, None)),
         lastLevelExpect = None,
         hasTimeLeftAtLeast = 10.seconds
       )
@@ -493,10 +493,10 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(5, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(None, deadline, None), Value.Update(None, None, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(None, deadline, None), Value.update(None, None, None)),
         expected = Slice(
-          Memory.Range(1, 5, Value.Update(None, deadline, None), Value.Update(None, None, None)),
-          Memory.Range(5, 10, Value.Update(None, None, None), Value.Update(None, None, None))
+          Memory.Range(1, 5, Value.update(None, deadline, None), Value.update(None, None, None)),
+          Memory.Range(5, 10, Value.update(None, None, None), Value.update(None, None, None))
         ),
         lastLevelExpect = Slice.empty,
         hasTimeLeftAtLeast = 10.seconds
@@ -508,9 +508,9 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(10, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(None, deadline, None), Value.Update(None, None, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(None, deadline, None), Value.update(None, None, None)),
         expected = Slice(
-          Memory.Range(1, 10, Value.Update(None, deadline, None), Value.Update(None, None, None)),
+          Memory.Range(1, 10, Value.update(None, deadline, None), Value.update(None, None, None)),
           Memory.update(10, None, None)
         ),
         lastLevelExpect = Slice.empty,
@@ -527,8 +527,8 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
     "Range Update(Some, None) Update(None, None) - Left" in {
       assertMerge(
         newKeyValue = Memory.update(1, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, None), Value.Update(None, None, None)),
-        expected = Memory.Range(1, 10, Value.Update(None, None, None), Value.Update(None, None, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, None), Value.update(None, None, None)),
+        expected = Memory.Range(1, 10, Value.update(None, None, None), Value.update(None, None, None)),
         lastLevelExpect = None,
         hasTimeLeftAtLeast = 10.seconds
       )
@@ -538,10 +538,10 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(5, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, None), Value.Update(None, None, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, None), Value.update(None, None, None)),
         expected = Slice(
-          Memory.Range(1, 5, Value.Update(1, None), Value.Update(None, None, None)),
-          Memory.Range(5, 10, Value.Update(None, None, None), Value.Update(None, None, None))
+          Memory.Range(1, 5, Value.update(1, None), Value.update(None, None, None)),
+          Memory.Range(5, 10, Value.update(None, None, None), Value.update(None, None, None))
         ),
         lastLevelExpect = Slice.empty,
         hasTimeLeftAtLeast = 10.seconds
@@ -552,9 +552,9 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(10, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, None), Value.Update(None, None, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, None), Value.Update(None, None, None)),
         expected = Slice(
-          Memory.Range(1, 10, Value.Update(1, None), Value.Update(None, None, None)),
+          Memory.Range(1, 10, Value.update(1, None), Value.Update(None, None, None)),
           Memory.update(10, None, None)
         ),
         lastLevelExpect = Slice.empty,
@@ -573,8 +573,8 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(1, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(None, None, None)),
-        expected = Memory.Range(1, 10, Value.Update(None, deadline, None), Value.Update(None, None, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, deadline), Value.update(None, None, None)),
+        expected = Memory.Range(1, 10, Value.update(None, deadline, None), Value.update(None, None, None)),
         lastLevelExpect = None,
         hasTimeLeftAtLeast = 10.seconds
       )
@@ -585,10 +585,10 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(5, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(None, None, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, deadline), Value.update(None, None, None)),
         expected = Slice(
-          Memory.Range(1, 5, Value.Update(1, deadline), Value.Update(None, None, None)),
-          Memory.Range(5, 10, Value.Update(None, None, None), Value.Update(None, None, None))
+          Memory.Range(1, 5, Value.update(1, deadline), Value.update(None, None, None)),
+          Memory.Range(5, 10, Value.update(None, None, None), Value.update(None, None, None))
         ),
         lastLevelExpect = Slice.empty,
         hasTimeLeftAtLeast = 10.seconds
@@ -600,9 +600,9 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(10, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(None, None, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, deadline), Value.update(None, None, None)),
         expected = Slice(
-          Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(None, None, None)),
+          Memory.Range(1, 10, Value.update(1, deadline), Value.update(None, None, None)),
           Memory.update(10, None, None)
         ),
         lastLevelExpect = Slice.empty,
@@ -617,8 +617,8 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(1, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(None, None, None)),
-        expected = Memory.Range(1, 10, Value.Update(None, deadline, None), Value.Update(None, None, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, deadline), Value.update(None, None, None)),
+        expected = Memory.Range(1, 10, Value.update(None, deadline, None), Value.update(None, None, None)),
         lastLevelExpect = None,
         hasTimeLeftAtLeast = 10.seconds
       )
@@ -629,10 +629,10 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(5, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(None, None, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, deadline), Value.update(None, None, None)),
         expected = Slice(
-          Memory.Range(1, 5, Value.Update(1, deadline), Value.Update(None, None, None)),
-          Memory.Range(5, 10, Value.Update(None, None, None), Value.Update(None, None, None))
+          Memory.Range(1, 5, Value.update(1, deadline), Value.update(None, None, None)),
+          Memory.Range(5, 10, Value.update(None, None, None), Value.update(None, None, None))
         ),
         lastLevelExpect = Slice.empty,
         hasTimeLeftAtLeast = 10.seconds
@@ -644,9 +644,9 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(10, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(None, None, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, deadline), Value.update(None, None, None)),
         expected = Slice(
-          Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(None, None, None)),
+          Memory.Range(1, 10, Value.update(1, deadline), Value.update(None, None, None)),
           Memory.update(10, None, None)
         ),
         lastLevelExpect = Slice.empty,
@@ -661,8 +661,8 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(1, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(None, None, None)),
-        expected = Memory.Range(1, 10, Value.Update(None, deadline, None), Value.Update(None, None, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, deadline), Value.update(None, None, None)),
+        expected = Memory.Range(1, 10, Value.update(None, deadline, None), Value.update(None, None, None)),
         lastLevelExpect = None,
         hasTimeLeftAtLeast = 10.seconds
       )
@@ -673,10 +673,10 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(5, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(None, None, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, deadline), Value.update(None, None, None)),
         expected = Slice(
-          Memory.Range(1, 5, Value.Update(1, deadline), Value.Update(None, None, None)),
-          Memory.Range(5, 10, Value.Update(None, None, None), Value.Update(None, None, None))
+          Memory.Range(1, 5, Value.update(1, deadline), Value.update(None, None, None)),
+          Memory.Range(5, 10, Value.update(None, None, None), Value.update(None, None, None))
         ),
         lastLevelExpect = Slice.empty,
         hasTimeLeftAtLeast = 10.seconds
@@ -688,9 +688,9 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(10, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(None, None, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, deadline), Value.update(None, None, None)),
         expected = Slice(
-          Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(None, None, None)),
+          Memory.Range(1, 10, Value.update(1, deadline), Value.update(None, None, None)),
           Memory.update(10, None, None)
         ),
         lastLevelExpect = Slice.empty,
@@ -709,8 +709,8 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(1, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(2, None)),
-        expected = Memory.Range(1, 10, Value.Update(None, deadline, None), Value.Update(2, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, deadline), Value.update(2, None)),
+        expected = Memory.Range(1, 10, Value.update(None, deadline, None), Value.update(2, None)),
         lastLevelExpect = None,
         hasTimeLeftAtLeast = 10.seconds
       )
@@ -721,10 +721,10 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(5, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(2, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, deadline), Value.update(2, None)),
         expected = Slice(
-          Memory.Range(1, 5, Value.Update(1, deadline), Value.Update(2, None)),
-          Memory.Range(5, 10, Value.Update(None, None, None), Value.Update(2, None))
+          Memory.Range(1, 5, Value.update(1, deadline), Value.update(2, None)),
+          Memory.Range(5, 10, Value.update(None, None, None), Value.update(2, None))
         ),
         lastLevelExpect = Slice.empty,
         hasTimeLeftAtLeast = 10.seconds
@@ -736,9 +736,9 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(10, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(2, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, deadline), Value.update(2, None)),
         expected = Slice(
-          Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(2, None)),
+          Memory.Range(1, 10, Value.update(1, deadline), Value.update(2, None)),
           Memory.update(10, None, None)
         ),
         lastLevelExpect = Slice.empty,
@@ -753,8 +753,8 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(1, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(2, None)),
-        expected = Memory.Range(1, 10, Value.Update(None, deadline, None), Value.Update(2, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, deadline), Value.update(2, None)),
+        expected = Memory.Range(1, 10, Value.update(None, deadline, None), Value.update(2, None)),
         lastLevelExpect = None,
         hasTimeLeftAtLeast = 10.seconds
       )
@@ -765,10 +765,10 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(5, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(2, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, deadline), Value.update(2, None)),
         expected = Slice(
-          Memory.Range(1, 5, Value.Update(1, deadline), Value.Update(2, None)),
-          Memory.Range(5, 10, Value.Update(None, None, None), Value.Update(2, None))
+          Memory.Range(1, 5, Value.update(1, deadline), Value.update(2, None)),
+          Memory.Range(5, 10, Value.update(None, None, None), Value.update(2, None))
         ),
         lastLevelExpect = Slice.empty,
         hasTimeLeftAtLeast = 10.seconds
@@ -780,9 +780,9 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(10, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(2, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, deadline), Value.update(2, None)),
         expected = Slice(
-          Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(2, None)),
+          Memory.Range(1, 10, Value.update(1, deadline), Value.update(2, None)),
           Memory.update(10, None, None)
         ),
         lastLevelExpect = Slice.empty,
@@ -797,8 +797,8 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(1, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(2, None)),
-        expected = Memory.Range(1, 10, Value.Update(None, deadline, None), Value.Update(2, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, deadline), Value.update(2, None)),
+        expected = Memory.Range(1, 10, Value.update(None, deadline, None), Value.update(2, None)),
         lastLevelExpect = None,
         hasTimeLeftAtLeast = 10.seconds
       )
@@ -809,10 +809,10 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(5, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(2, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, deadline), Value.update(2, None)),
         expected = Slice(
-          Memory.Range(1, 5, Value.Update(1, deadline), Value.Update(2, None)),
-          Memory.Range(5, 10, Value.Update(None, None, None), Value.Update(2, None))
+          Memory.Range(1, 5, Value.update(1, deadline), Value.update(2, None)),
+          Memory.Range(5, 10, Value.update(None, None, None), Value.update(2, None))
         ),
         lastLevelExpect = Slice.empty,
         hasTimeLeftAtLeast = 10.seconds
@@ -824,9 +824,9 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(10, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(2, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, deadline), Value.update(2, None)),
         expected = Slice(
-          Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(2, None)),
+          Memory.Range(1, 10, Value.update(1, deadline), Value.update(2, None)),
           Memory.update(10, None, None)
         ),
         lastLevelExpect = Slice.empty,
@@ -846,8 +846,8 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(1, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(None, deadline2, None)),
-        expected = Memory.Range(1, 10, Value.Update(None, deadline, None), Value.Update(None, deadline2, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, deadline), Value.update(None, deadline2, None)),
+        expected = Memory.Range(1, 10, Value.update(None, deadline, None), Value.update(None, deadline2, None)),
         lastLevelExpect = None,
         hasTimeLeftAtLeast = 10.seconds
       )
@@ -859,10 +859,10 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(5, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(None, deadline2, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, deadline), Value.update(None, deadline2, None)),
         expected = Slice(
-          Memory.Range(1, 5, Value.Update(1, deadline), Value.Update(None, deadline2, None)),
-          Memory.Range(5, 10, Value.Update(None, deadline2, None), Value.Update(None, deadline2, None))
+          Memory.Range(1, 5, Value.update(1, deadline), Value.update(None, deadline2, None)),
+          Memory.Range(5, 10, Value.update(None, deadline2, None), Value.update(None, deadline2, None))
         ),
         lastLevelExpect = Slice.empty,
         hasTimeLeftAtLeast = 10.seconds
@@ -875,9 +875,9 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(10, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(None, deadline2, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, deadline), Value.update(None, deadline2, None)),
         expected = Slice(
-          Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(None, deadline2, None)),
+          Memory.Range(1, 10, Value.update(1, deadline), Value.update(None, deadline2, None)),
           Memory.update(10, None, None)
         ),
         lastLevelExpect = Slice.empty,
@@ -893,8 +893,8 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(1, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(None, deadline2, None)),
-        expected = Memory.Range(1, 10, Value.Update(None, deadline, None), Value.Update(None, deadline2, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, deadline), Value.update(None, deadline2, None)),
+        expected = Memory.Range(1, 10, Value.update(None, deadline, None), Value.update(None, deadline2, None)),
         lastLevelExpect = None,
         hasTimeLeftAtLeast = 10.seconds
       )
@@ -906,10 +906,10 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(5, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(None, deadline2, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, deadline), Value.update(None, deadline2, None)),
         expected = Slice(
-          Memory.Range(1, 5, Value.Update(1, deadline), Value.Update(None, deadline2, None)),
-          Memory.Range(5, 10, Value.Update(None, deadline2, None), Value.Update(None, deadline2, None))
+          Memory.Range(1, 5, Value.update(1, deadline), Value.update(None, deadline2, None)),
+          Memory.Range(5, 10, Value.update(None, deadline2, None), Value.update(None, deadline2, None))
         ),
         lastLevelExpect = Slice.empty,
         hasTimeLeftAtLeast = 10.seconds
@@ -922,9 +922,9 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(10, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(None, deadline2, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, deadline), Value.update(None, deadline2, None)),
         expected = Slice(
-          Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(None, deadline2, None)),
+          Memory.Range(1, 10, Value.update(1, deadline), Value.update(None, deadline2, None)),
           Memory.update(10, None, None)
         ),
         lastLevelExpect = Slice.empty,
@@ -940,8 +940,8 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(1, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(None, deadline2, None)),
-        expected = Memory.Range(1, 10, Value.Update(None, deadline, None), Value.Update(None, deadline2, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, deadline), Value.update(None, deadline2, None)),
+        expected = Memory.Range(1, 10, Value.update(None, deadline, None), Value.update(None, deadline2, None)),
         lastLevelExpect = None,
         hasTimeLeftAtLeast = 10.seconds
       )
@@ -953,10 +953,10 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(5, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(None, deadline2, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, deadline), Value.update(None, deadline2, None)),
         expected = Slice(
-          Memory.Range(1, 5, Value.Update(1, deadline), Value.Update(None, deadline2, None)),
-          Memory.Range(5, 10, Value.Update(None, deadline2, None), Value.Update(None, deadline2, None))
+          Memory.Range(1, 5, Value.update(1, deadline), Value.update(None, deadline2, None)),
+          Memory.Range(5, 10, Value.update(None, deadline2, None), Value.update(None, deadline2, None))
         ),
         lastLevelExpect = Slice.empty,
         hasTimeLeftAtLeast = 10.seconds
@@ -969,9 +969,9 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(10, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(2, deadline2)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, deadline), Value.update(2, deadline2)),
         expected = Slice(
-          Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(2, deadline2)),
+          Memory.Range(1, 10, Value.update(1, deadline), Value.update(2, deadline2)),
           Memory.update(10, None, None)
         ),
         lastLevelExpect = Slice.empty,
@@ -987,8 +987,8 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(1, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(None, deadline2, None)),
-        expected = Memory.Range(1, 10, Value.Update(None, deadline, None), Value.Update(None, deadline2, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, deadline), Value.update(None, deadline2, None)),
+        expected = Memory.Range(1, 10, Value.update(None, deadline, None), Value.update(None, deadline2, None)),
         lastLevelExpect = None,
         hasTimeLeftAtLeast = 10.seconds
       )
@@ -1000,10 +1000,10 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(5, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(None, deadline2, None)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, deadline), Value.update(None, deadline2, None)),
         expected = Slice(
-          Memory.Range(1, 5, Value.Update(1, deadline), Value.Update(None, deadline2, None)),
-          Memory.Range(5, 10, Value.Update(None, deadline2, None), Value.Update(None, deadline2, None))
+          Memory.Range(1, 5, Value.update(1, deadline), Value.update(None, deadline2, None)),
+          Memory.Range(5, 10, Value.update(None, deadline2, None), Value.update(None, deadline2, None))
         ),
         lastLevelExpect = Slice.empty,
         hasTimeLeftAtLeast = 10.seconds
@@ -1016,9 +1016,9 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(10, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(2, deadline2)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, deadline), Value.update(2, deadline2)),
         expected = Slice(
-          Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(2, deadline2)),
+          Memory.Range(1, 10, Value.update(1, deadline), Value.update(2, deadline2)),
           Memory.update(10, None, None)
         ),
         lastLevelExpect = Slice.empty,
@@ -1038,8 +1038,8 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(1, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(2, deadline2)),
-        expected = Memory.Range(1, 10, Value.Update(None, deadline, None), Value.Update(2, deadline2)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, deadline), Value.update(2, deadline2)),
+        expected = Memory.Range(1, 10, Value.update(None, deadline, None), Value.update(2, deadline2)),
         lastLevelExpect = None,
         hasTimeLeftAtLeast = 10.seconds
       )
@@ -1051,10 +1051,10 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(5, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(2, deadline2)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, deadline), Value.update(2, deadline2)),
         expected = Slice(
-          Memory.Range(1, 5, Value.Update(1, deadline), Value.Update(2, deadline2)),
-          Memory.Range(5, 10, Value.Update(None, deadline2, None), Value.Update(2, deadline2))
+          Memory.Range(1, 5, Value.update(1, deadline), Value.update(2, deadline2)),
+          Memory.Range(5, 10, Value.update(None, deadline2, None), Value.update(2, deadline2))
         ),
         lastLevelExpect = Slice.empty,
         hasTimeLeftAtLeast = 10.seconds
@@ -1067,9 +1067,9 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(10, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(2, deadline2)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, deadline), Value.update(2, deadline2)),
         expected = Slice(
-          Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(2, deadline2)),
+          Memory.Range(1, 10, Value.update(1, deadline), Value.update(2, deadline2)),
           Memory.update(10, None, None)
         ),
         lastLevelExpect = Slice.empty,
@@ -1085,8 +1085,8 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(1, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(2, deadline2)),
-        expected = Memory.Range(1, 10, Value.Update(None, deadline, None), Value.Update(2, deadline2)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, deadline), Value.update(2, deadline2)),
+        expected = Memory.Range(1, 10, Value.update(None, deadline, None), Value.update(2, deadline2)),
         lastLevelExpect = None,
         hasTimeLeftAtLeast = 10.seconds
       )
@@ -1098,10 +1098,10 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(5, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(2, deadline2)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, deadline), Value.update(2, deadline2)),
         expected = Slice(
-          Memory.Range(1, 5, Value.Update(1, deadline), Value.Update(2, deadline2)),
-          Memory.Range(5, 10, Value.Update(None, deadline2, None), Value.Update(2, deadline2))
+          Memory.Range(1, 5, Value.update(1, deadline), Value.update(2, deadline2)),
+          Memory.Range(5, 10, Value.update(None, deadline2, None), Value.update(2, deadline2))
         ),
         lastLevelExpect = Slice.empty,
         hasTimeLeftAtLeast = 10.seconds
@@ -1114,9 +1114,9 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(10, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(2, deadline2)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, deadline), Value.update(2, deadline2)),
         expected = Slice(
-          Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(2, deadline2)),
+          Memory.Range(1, 10, Value.update(1, deadline), Value.update(2, deadline2)),
           Memory.update(10, None, None)
         ),
         lastLevelExpect = Slice.empty,
@@ -1132,8 +1132,8 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(1, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(2, deadline2)),
-        expected = Memory.Range(1, 10, Value.Update(None, deadline, None), Value.Update(2, deadline2)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, deadline), Value.update(2, deadline2)),
+        expected = Memory.Range(1, 10, Value.update(None, deadline, None), Value.update(2, deadline2)),
         lastLevelExpect = None,
         hasTimeLeftAtLeast = 10.seconds
       )
@@ -1145,10 +1145,10 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(5, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(2, deadline2)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, deadline), Value.update(2, deadline2)),
         expected = Slice(
-          Memory.Range(1, 5, Value.Update(1, deadline), Value.Update(2, deadline2)),
-          Memory.Range(5, 10, Value.Update(None, deadline2, None), Value.Update(2, deadline2))
+          Memory.Range(1, 5, Value.update(1, deadline), Value.update(2, deadline2)),
+          Memory.Range(5, 10, Value.update(None, deadline2, None), Value.update(2, deadline2))
         ),
         lastLevelExpect = Slice.empty,
         hasTimeLeftAtLeast = 10.seconds
@@ -1161,9 +1161,9 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(10, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(2, deadline2)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, deadline), Value.update(2, deadline2)),
         expected = Slice(
-          Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(2, deadline2)),
+          Memory.Range(1, 10, Value.update(1, deadline), Value.update(2, deadline2)),
           Memory.update(10, None, None)
         ),
         lastLevelExpect = Slice.empty,
@@ -1179,8 +1179,8 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(1, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(2, deadline2)),
-        expected = Memory.Range(1, 10, Value.Update(None, deadline, None), Value.Update(2, deadline2)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, deadline), Value.update(2, deadline2)),
+        expected = Memory.Range(1, 10, Value.update(None, deadline, None), Value.update(2, deadline2)),
         lastLevelExpect = None,
         hasTimeLeftAtLeast = 10.seconds
       )
@@ -1192,10 +1192,10 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(5, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(2, deadline2)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, deadline), Value.update(2, deadline2)),
         expected = Slice(
-          Memory.Range(1, 5, Value.Update(1, deadline), Value.Update(2, deadline2)),
-          Memory.Range(5, 10, Value.Update(None, deadline2, None), Value.Update(2, deadline2))
+          Memory.Range(1, 5, Value.update(1, deadline), Value.update(2, deadline2)),
+          Memory.Range(5, 10, Value.update(None, deadline2, None), Value.update(2, deadline2))
         ),
         lastLevelExpect = Slice.empty,
         hasTimeLeftAtLeast = 10.seconds
@@ -1208,9 +1208,9 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(10, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(2, deadline2)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, deadline), Value.update(2, deadline2)),
         expected = Slice(
-          Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(2, deadline2)),
+          Memory.Range(1, 10, Value.update(1, deadline), Value.update(2, deadline2)),
           Memory.update(10, None, None)
         ),
         lastLevelExpect = Slice.empty,
@@ -1230,8 +1230,8 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(1, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(2, deadline2)),
-        expected = Memory.Range(1, 10, Value.Update(None, deadline, None), Value.Update(2, deadline2)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, deadline), Value.update(2, deadline2)),
+        expected = Memory.Range(1, 10, Value.update(None, deadline, None), Value.update(2, deadline2)),
         lastLevelExpect = None,
         hasTimeLeftAtLeast = 10.seconds
       )
@@ -1243,10 +1243,10 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(5, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(2, deadline2)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, deadline), Value.update(2, deadline2)),
         expected = Slice(
-          Memory.Range(1, 5, Value.Update(1, deadline), Value.Update(2, deadline2)),
-          Memory.Range(5, 10, Value.Update(None, deadline2, None), Value.Update(2, deadline2))
+          Memory.Range(1, 5, Value.update(1, deadline), Value.update(2, deadline2)),
+          Memory.Range(5, 10, Value.update(None, deadline2, None), Value.update(2, deadline2))
         ),
         lastLevelExpect = Slice.empty,
         hasTimeLeftAtLeast = 10.seconds
@@ -1259,9 +1259,9 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(10, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(2, deadline2)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, deadline), Value.update(2, deadline2)),
         expected = Slice(
-          Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(2, deadline2)),
+          Memory.Range(1, 10, Value.update(1, deadline), Value.update(2, deadline2)),
           Memory.update(10, None, None)
         ),
         lastLevelExpect = Slice.empty,
@@ -1277,8 +1277,8 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(1, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(2, deadline2)),
-        expected = Memory.Range(1, 10, Value.Update(None, deadline, None), Value.Update(2, deadline2)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, deadline), Value.update(2, deadline2)),
+        expected = Memory.Range(1, 10, Value.update(None, deadline, None), Value.update(2, deadline2)),
         lastLevelExpect = None,
         hasTimeLeftAtLeast = 10.seconds
       )
@@ -1290,10 +1290,10 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(5, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(2, deadline2)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, deadline), Value.update(2, deadline2)),
         expected = Slice(
-          Memory.Range(1, 5, Value.Update(1, deadline), Value.Update(2, deadline2)),
-          Memory.Range(5, 10, Value.Update(None, deadline2, None), Value.Update(2, deadline2))
+          Memory.Range(1, 5, Value.update(1, deadline), Value.update(2, deadline2)),
+          Memory.Range(5, 10, Value.update(None, deadline2, None), Value.update(2, deadline2))
         ),
         lastLevelExpect = Slice.empty,
         hasTimeLeftAtLeast = 10.seconds
@@ -1306,9 +1306,9 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(10, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(2, deadline2)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, deadline), Value.update(2, deadline2)),
         expected = Slice(
-          Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(2, deadline2)),
+          Memory.Range(1, 10, Value.update(1, deadline), Value.update(2, deadline2)),
           Memory.update(10, None, None)
         ),
         lastLevelExpect = Slice.empty,
@@ -1324,8 +1324,8 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(1, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(2, deadline2)),
-        expected = Memory.Range(1, 10, Value.Update(None, deadline, None), Value.Update(2, deadline2)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, deadline), Value.update(2, deadline2)),
+        expected = Memory.Range(1, 10, Value.update(None, deadline, None), Value.update(2, deadline2)),
         lastLevelExpect = None,
         hasTimeLeftAtLeast = 10.seconds
       )
@@ -1337,10 +1337,10 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(5, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(2, deadline2)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, deadline), Value.update(2, deadline2)),
         expected = Slice(
-          Memory.Range(1, 5, Value.Update(1, deadline), Value.Update(2, deadline2)),
-          Memory.Range(5, 10, Value.Update(None, deadline2, None), Value.Update(2, deadline2))
+          Memory.Range(1, 5, Value.update(1, deadline), Value.update(2, deadline2)),
+          Memory.Range(5, 10, Value.update(None, deadline2, None), Value.update(2, deadline2))
         ),
         lastLevelExpect = Slice.empty,
         hasTimeLeftAtLeast = 10.seconds
@@ -1353,9 +1353,9 @@ class SegmentMerger_Update_None_None_Into_Range_Update_Update extends WordSpec w
 
       assertMerge(
         newKeyValue = Memory.update(10, None, None),
-        oldKeyValue = Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(2, deadline2)),
+        oldKeyValue = Memory.Range(1, 10, Value.update(1, deadline), Value.update(2, deadline2)),
         expected = Slice(
-          Memory.Range(1, 10, Value.Update(1, deadline), Value.Update(2, deadline2)),
+          Memory.Range(1, 10, Value.update(1, deadline), Value.update(2, deadline2)),
           Memory.update(10, None, None)
         ),
         lastLevelExpect = Slice.empty,

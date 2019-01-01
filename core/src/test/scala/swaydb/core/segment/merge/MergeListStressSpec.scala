@@ -38,7 +38,7 @@ class MergeListStressSpec extends WordSpec with Matchers with CommonAssertions w
     "stress" in {
       val initialKeyValues = Slice[KeyValue.ReadOnly](1, 2, 3)
       var list = MergeList[KeyValue.ReadOnly.Range, KeyValue.ReadOnly](initialKeyValues)
-      val range = Memory.Range(1, 2, None, Value.Update(1))
+      val range = Memory.Range(1, 2, None, Value.update(1))
 
       val stateExpected = ListBuffer.empty[KeyValue.ReadOnly] ++ initialKeyValues
 

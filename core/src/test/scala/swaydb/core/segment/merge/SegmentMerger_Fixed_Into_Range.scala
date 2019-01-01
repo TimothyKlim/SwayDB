@@ -141,21 +141,21 @@
 //
 //      val oldKeyValues: Slice[Memory.SegmentResponse] =
 //        Slice(
-//          Memory.Range(10, 20, Option.empty[Value.Put], Value.Update("ranges value 1")),
-//          Memory.Range(25, 30, Some(Value.Put(25)), Value.Update("ranges value 2", deadline2))
+//          Memory.Range(10, 20, Option.empty[Value.Put], Value.update("ranges value 1")),
+//          Memory.Range(25, 30, Some(Value.put(25)), Value.update("ranges value 2", deadline2))
 //        )
 //
 //      val expected: Slice[Memory.SegmentResponse] =
 //        Slice(
 //          Memory.put(9, 9),
-//          Memory.Range(10, 11, Some(Value.Put(10)), Value.Update("ranges value 1")),
-//          Memory.Range(11, 15, Some(Value.Put(11, deadline1)), Value.Update("ranges value 1")),
-//          Memory.Range(15, 18, Some(Value.Remove(None)), Value.Update("ranges value 1")),
-//          Memory.Range(18, 20, Some(Value.Put(18)), Value.Update("ranges value 1")),
+//          Memory.Range(10, 11, Some(Value.put(10)), Value.update("ranges value 1")),
+//          Memory.Range(11, 15, Some(Value.put(11, deadline1)), Value.update("ranges value 1")),
+//          Memory.Range(15, 18, Some(Value.remove(None)), Value.update("ranges value 1")),
+//          Memory.Range(18, 20, Some(Value.put(18)), Value.update("ranges value 1")),
 //          Memory.remove(21),
 //          Memory.put(23, 23),
-//          Memory.Range(25, 27, Some(Value.Remove(None)), Value.Update("ranges value 2", deadline2)),
-//          Memory.Range(27, 30, Some(Value.Put(27)), Value.Update("ranges value 2", deadline2)),
+//          Memory.Range(25, 27, Some(Value.remove(None)), Value.update("ranges value 2", deadline2)),
+//          Memory.Range(27, 30, Some(Value.put(27)), Value.update("ranges value 2", deadline2)),
 //          Memory.put(30, 30)
 //        )
 //

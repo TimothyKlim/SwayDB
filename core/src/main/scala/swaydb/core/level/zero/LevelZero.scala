@@ -179,7 +179,7 @@ private[core] class LevelZero(val path: Path,
           Failure(new Exception("fromKey should be less than toKey"))
         else
           maps.write {
-            (MapEntry.Put[Slice[Byte], Memory.Range](fromKey, Memory.Range(fromKey, to, None, Value.Remove(None))): MapEntry[Slice[Byte], Memory.SegmentResponse]) ++
+            (MapEntry.Put[Slice[Byte], Memory.Range](fromKey, Memory.Range(fromKey, to, None, Value.Remove(None, None))): MapEntry[Slice[Byte], Memory.SegmentResponse]) ++
               MapEntry.Put[Slice[Byte], Memory.Remove](to, Memory.Remove(to, None, None))
           }
       }
@@ -192,7 +192,7 @@ private[core] class LevelZero(val path: Path,
           Failure(new Exception("fromKey should be less than toKey"))
         else
           maps.write {
-            (MapEntry.Put[Slice[Byte], Memory.Range](fromKey, Memory.Range(fromKey, to, None, Value.Remove(at))): MapEntry[Slice[Byte], Memory.SegmentResponse]) ++
+            (MapEntry.Put[Slice[Byte], Memory.Range](fromKey, Memory.Range(fromKey, to, None, Value.Remove(Some(at), None))): MapEntry[Slice[Byte], Memory.SegmentResponse]) ++
               MapEntry.Put[Slice[Byte], Memory.Remove](to, Memory.Remove(to, Some(at), None))
           }
       }
@@ -224,7 +224,7 @@ private[core] class LevelZero(val path: Path,
                 fromKey = fromKey,
                 toKey = to,
                 fromValue = None,
-                rangeValue = Value.Update(value, None)
+                rangeValue = Value.Update(value, None, None)
               )
             ): MapEntry[Slice[Byte], Memory.SegmentResponse]) ++ MapEntry.Put[Slice[Byte], Memory.Update](to, Memory.Update(to, value, None, None))
           }

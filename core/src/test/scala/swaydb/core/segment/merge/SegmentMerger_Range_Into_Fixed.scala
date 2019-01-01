@@ -47,10 +47,10 @@
 //          val (expectedKeyValue: Memory.Range, expectedLastKeyValue: Option[Memory.Fixed]) =
 //            newKeyValue.fetchFromAndRangeValue.assertGet match {
 //              //if the input range is a remove range, old key-values get dropped instead of doing a split.
-//              case (None | Some(Value.Remove(None, None)), Value.Remove(None, None)) =>
+//              case (None | Some(Value.remove(None, None)), Value.remove(None, None)) =>
 //                (newKeyValue, None)
 //
-//              case (Some(Value.Put(value, deadline, None)), Value.Remove(None, None)) =>
+//              case (Some(Value.put(value, deadline, None)), Value.remove(None, None)) =>
 //                if (deadline.forall(_.hasTimeLeft()))
 //                  (newKeyValue, Some(Memory.put(newKeyValue.key, value, deadline)))
 //                else
@@ -159,7 +159,7 @@
 //    "remove all key-values" in {
 //      //  0    -         25
 //      //    2, 7, 10, 20
-//      val newKeyValues = Slice(Memory.Range(0, 25, Some(Value.Remove(None)), Value.Remove(None)))
+//      val newKeyValues = Slice(Memory.Range(0, 25, Some(Value.remove(None)), Value.remove(None)))
 //
 //      val oldKeyValues: Slice[Memory.SegmentResponse] =
 //        Slice(
@@ -170,7 +170,7 @@
 //        )
 //
 //      val expected =
-//        Slice(Memory.Range(0, 25, Some(Value.Remove(None)), Value.Remove(None)))
+//        Slice(Memory.Range(0, 25, Some(Value.remove(None)), Value.remove(None)))
 //
 //      assertMerge(
 //        newKeyValues = newKeyValues,
@@ -184,7 +184,7 @@
 //    "remove all key-values within the range only when range's last key does overlaps and existing key" in {
 //      //       3  -    20
 //      //  1, 2, 7, 10, 20
-//      val newKeyValues = Slice(Memory.Range(3, 20, None, Value.Remove(None)))
+//      val newKeyValues = Slice(Memory.Range(3, 20, None, Value.remove(None)))
 //      val oldKeyValues =
 //        Slice(
 //          Memory.remove(1),
@@ -198,7 +198,7 @@
 //        Slice(
 //          Memory.remove(1),
 //          Memory.put(2, "new value value"),
-//          Memory.Range(3, 20, None, Value.Remove(None)),
+//          Memory.Range(3, 20, None, Value.remove(None)),
 //          Memory.put(20, "new value value")
 //        )
 //
@@ -221,7 +221,7 @@
 //  "remove all key-values within the range only when range's keys overlaps and existing key" in {
 //    //     2    -    20
 //    //  1, 2, 7, 10, 20
-//    val newKeyValues = Slice(Memory.Range(2, 20, None, Value.Remove(None)))
+//    val newKeyValues = Slice(Memory.Range(2, 20, None, Value.remove(None)))
 //    val oldKeyValues =
 //      Slice(
 //        Memory.remove(1),
@@ -233,7 +233,7 @@
 //
 //    val expected = Slice(
 //      Memory.remove(1),
-//      Memory.Range(2, 20, None, Value.Remove(None)),
+//      Memory.Range(2, 20, None, Value.remove(None)),
 //      Memory.put(20, "new value value")
 //    )
 //
@@ -254,7 +254,7 @@
 //  "remove all key-values within the range only when range's first key does not overlap and existing key" in {
 //    // 1    -   8
 //    //     2, 7, 10, 20
-//    val newKeyValues = Slice(Memory.Range(1, 8, None, Value.Remove(None)))
+//    val newKeyValues = Slice(Memory.Range(1, 8, None, Value.remove(None)))
 //
 //    val oldKeyValues =
 //      Slice(
@@ -266,7 +266,7 @@
 //
 //    val expected =
 //      Slice(
-//        Memory.Range(1, 8, None, Value.Remove(None)),
+//        Memory.Range(1, 8, None, Value.remove(None)),
 //        Memory.remove(10),
 //        Memory.put(20, "new value value")
 //      )
@@ -288,7 +288,7 @@
 //  "remove all key-values but keep the range's fromValue" in {
 //    // 1            -          100
 //    // 1,  7, 10, 20
-//    val newKeyValues = Slice(Memory.Range(1, 100, Some(Value.Put(100)), Value.Remove(None)))
+//    val newKeyValues = Slice(Memory.Range(1, 100, Some(Value.put(100)), Value.remove(None)))
 //
 //    val oldKeyValues =
 //      Slice(
@@ -298,7 +298,7 @@
 //        Memory.put(20, "new value value")
 //      )
 //
-//    val expected = Slice(Memory.Range(1, 100, Some(Value.Put(100)), Value.Remove(None)))
+//    val expected = Slice(Memory.Range(1, 100, Some(Value.put(100)), Value.remove(None)))
 //
 //    val lastLevelExpected =
 //      Slice(
@@ -317,7 +317,7 @@
 //  "update all key-values within the range only when range's first key does not overlap and existing key" in {
 //    // 1     -     15
 //    //     2, 7, 10, 20
-//    val newKeyValues = Slice(Memory.Range(1, 15, None, Value.Update(15)))
+//    val newKeyValues = Slice(Memory.Range(1, 15, None, Value.update(15)))
 //    val oldKeyValues =
 //      Slice(
 //        Memory.put(2, "new value value"),
@@ -327,10 +327,10 @@
 //      )
 //    val expected =
 //      Slice(
-//        Memory.Range(1, 2, None, Value.Update(15)),
-//        Memory.Range(2, 7, Some(Value.Put(15)), Value.Update(15)),
-//        Memory.Range(7, 10, Some(Value.Put(15)), Value.Update(15)),
-//        Memory.Range(10, 15, Some(Value.Remove(None)), Value.Update(15)),
+//        Memory.Range(1, 2, None, Value.update(15)),
+//        Memory.Range(2, 7, Some(Value.put(15)), Value.update(15)),
+//        Memory.Range(7, 10, Some(Value.put(15)), Value.update(15)),
+//        Memory.Range(10, 15, Some(Value.remove(None)), Value.update(15)),
 //        Memory.put(20, "new value value")
 //      )
 //
@@ -352,7 +352,7 @@
 //  "update all key-values within the range only when range's last key does not overlap and existing key" in {
 //    //       6     -     30
 //    //     2, 7, 10, 20  30, 31
-//    val newKeyValues = Slice(Memory.Range(6, 30, None, Value.Update("updated")))
+//    val newKeyValues = Slice(Memory.Range(6, 30, None, Value.update("updated")))
 //
 //    val oldKeyValues =
 //      Slice(
@@ -365,10 +365,10 @@
 //      )
 //    val expected = Slice(
 //      Memory.put(2, "new value"),
-//      Memory.Range(6, 7, None, Value.Update("updated")),
-//      Memory.Range(7, 10, Some(Value.Put("updated")), Value.Update("updated")),
-//      Memory.Range(10, 20, Some(Value.Remove(None)), Value.Update("updated")),
-//      Memory.Range(20, 30, Some(Value.Put("updated")), Value.Update("updated")),
+//      Memory.Range(6, 7, None, Value.update("updated")),
+//      Memory.Range(7, 10, Some(Value.put("updated")), Value.update("updated")),
+//      Memory.Range(10, 20, Some(Value.remove(None)), Value.update("updated")),
+//      Memory.Range(20, 30, Some(Value.put("updated")), Value.update("updated")),
 //      Memory.put(30, "new value"),
 //      Memory.remove(31)
 //    )
@@ -393,7 +393,7 @@
 //  "update all key-values when range's last key does not overlap and existing key" in {
 //    //     2         -           40
 //    //     2, 7, 10, 20  30, 31
-//    val newKeyValues = Slice(Memory.Range(2, 40, Some(Value.Remove(None)), Value.Update("updated")))
+//    val newKeyValues = Slice(Memory.Range(2, 40, Some(Value.remove(None)), Value.update("updated")))
 //    val oldKeyValues =
 //      Slice(
 //        Memory.put(2, "old value"),
@@ -404,12 +404,12 @@
 //        Memory.remove(31)
 //      )
 //    val expected = Slice(
-//      Memory.Range(2, 7, Some(Value.Remove(None)), Value.Update("updated")),
-//      Memory.Range(7, 10, Some(Value.Put("updated")), Value.Update("updated")),
-//      Memory.Range(10, 20, Some(Value.Remove(None)), Value.Update("updated")),
-//      Memory.Range(20, 30, Some(Value.Put("updated")), Value.Update("updated")),
-//      Memory.Range(30, 31, Some(Value.Put("updated")), Value.Update("updated")),
-//      Memory.Range(31, 40, Some(Value.Remove(None)), Value.Update("updated"))
+//      Memory.Range(2, 7, Some(Value.remove(None)), Value.update("updated")),
+//      Memory.Range(7, 10, Some(Value.put("updated")), Value.update("updated")),
+//      Memory.Range(10, 20, Some(Value.remove(None)), Value.update("updated")),
+//      Memory.Range(20, 30, Some(Value.put("updated")), Value.update("updated")),
+//      Memory.Range(30, 31, Some(Value.put("updated")), Value.update("updated")),
+//      Memory.Range(31, 40, Some(Value.remove(None)), Value.update("updated"))
 //    )
 //
 //    val lastLevelExpected = Slice(
@@ -431,8 +431,8 @@
 //    //  1, 2, 7, 10,   20  30, 35, 50,  53, 80
 //    val newKeyValues =
 //    Slice(
-//      Memory.Range(2, 11, None, Value.Update("updated")),
-//      Memory.Range(31, 51, Some(Value.Remove(None)), Value.Update("updated 2"))
+//      Memory.Range(2, 11, None, Value.update("updated")),
+//      Memory.Range(31, 51, Some(Value.remove(None)), Value.update("updated 2"))
 //    )
 //
 //    val oldKeyValues =
@@ -451,14 +451,14 @@
 //
 //    val expected = Slice(
 //      Memory.put(1, "old value"),
-//      Memory.Range(2, 7, Some(Value.Put("updated")), Value.Update("updated")),
-//      Memory.Range(7, 10, Some(Value.Put("updated")), Value.Update("updated")),
-//      Memory.Range(10, 11, Some(Value.Remove(None)), Value.Update("updated")),
+//      Memory.Range(2, 7, Some(Value.put("updated")), Value.update("updated")),
+//      Memory.Range(7, 10, Some(Value.put("updated")), Value.update("updated")),
+//      Memory.Range(10, 11, Some(Value.remove(None)), Value.update("updated")),
 //      Memory.put(20, "old value"),
 //      Memory.remove(30),
-//      Memory.Range(31, 35, Some(Value.Remove(None)), Value.Update("updated 2")),
-//      Memory.Range(35, 50, Some(Value.Remove(None)), Value.Update("updated 2")),
-//      Memory.Range(50, 51, Some(Value.Put("updated 2")), Value.Update("updated 2")),
+//      Memory.Range(31, 35, Some(Value.remove(None)), Value.update("updated 2")),
+//      Memory.Range(35, 50, Some(Value.remove(None)), Value.update("updated 2")),
+//      Memory.Range(50, 51, Some(Value.put("updated 2")), Value.update("updated 2")),
 //      Memory.put(53, "old value"),
 //      Memory.put(80, "old value")
 //    )

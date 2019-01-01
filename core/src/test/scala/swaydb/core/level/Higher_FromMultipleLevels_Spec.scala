@@ -105,11 +105,11 @@ sealed trait Higher_FromMultipleLevels_Spec extends TestBase with MockFactory wi
         val upperLevelKeyValue = if (Random.nextBoolean()) randomRangeKeyValue(5, 10) else randomFixedKeyValue(5)
         val lowerLevelKeyValue = if (Random.nextBoolean()) randomRangeKeyValue(5, 10) else randomFixedKeyValue(5)
 
-        //      val upperLevelKeyValue = Memory.Range(5, 10, Some(Value.Update(5, None)), Value.Remove(1000.seconds.fromNow))
+        //      val upperLevelKeyValue = Memory.Range(5, 10, Some(Value.update(5, None)), Value.remove(1000.seconds.fromNow))
         //      val lowerLevelKeyValue = Memory.update(5, None, 2099.seconds.fromNow)
 
-        //      val upperLevelKeyValue = Memory.Range(5, 10, Some(Value.Update(5, None)), Value.Remove(1000.seconds.fromNow))
-        //      val lowerLevelKeyValue = Memory.Range(5, 10, Some(Value.Update(10, None)), Value.Update(None, None))
+        //      val upperLevelKeyValue = Memory.Range(5, 10, Some(Value.update(5, None)), Value.remove(1000.seconds.fromNow))
+        //      val lowerLevelKeyValue = Memory.Range(5, 10, Some(Value.update(10, None)), Value.update(None, None))
 
         println
         println("upperLevelKeyValue: " + upperLevelKeyValue)
@@ -324,11 +324,11 @@ sealed trait Higher_FromMultipleLevels_Spec extends TestBase with MockFactory wi
         val upperLevelKeyValue = if (Random.nextBoolean()) randomRangeKeyValue(5, 10) else randomFixedKeyValue(5)
         val lowerLevelKeyValue = if (Random.nextBoolean()) randomRangeKeyValue(7, 20) else randomFixedKeyValue(7)
 
-        //      val upperLevelKeyValue = Memory.Range(5, 10, Some(Value.Put(None, 10000.seconds)), Value.Remove(20000.seconds.fromNow))
-        //      val lowerLevelKeyValue = Memory.Range(7, 15, Some(Value.Put(7, 10000.seconds)), Value.Remove(None))
+        //      val upperLevelKeyValue = Memory.Range(5, 10, Some(Value.put(None, 10000.seconds)), Value.remove(20000.seconds.fromNow))
+        //      val lowerLevelKeyValue = Memory.Range(7, 15, Some(Value.put(7, 10000.seconds)), Value.remove(None))
 
         //        val upperLevelKeyValue = Memory.remove(5, randomDeadlineOption)
-        //        val lowerLevelKeyValue = Memory.Range(7, 15, Some(Value.Put(Some(7), randomDeadlineOption)), Value.Remove(randomDeadlineOption))
+        //        val lowerLevelKeyValue = Memory.Range(7, 15, Some(Value.put(Some(7), randomDeadlineOption)), Value.remove(randomDeadlineOption))
 
         println
         println("upperLevelKeyValue: " + upperLevelKeyValue)
@@ -416,11 +416,11 @@ sealed trait Higher_FromMultipleLevels_Spec extends TestBase with MockFactory wi
         val upperLevelKeyValue = if (Random.nextBoolean()) randomRangeKeyValue(5, 10) else randomFixedKeyValue(5)
         val lowerLevelKeyValue = if (Random.nextBoolean()) randomRangeKeyValue(10, 20) else randomFixedKeyValue(10)
 
-        //      val upperLevelKeyValue = Memory.Range(5, 10, Some(Value.Put(None, 10000.seconds)), Value.Remove(22000.seconds.fromNow))
-        //      val lowerLevelKeyValue = Memory.Range(7, 22, Some(Value.Put(7, 10000.seconds)), Value.Remove(None))
+        //      val upperLevelKeyValue = Memory.Range(5, 10, Some(Value.put(None, 10000.seconds)), Value.remove(22000.seconds.fromNow))
+        //      val lowerLevelKeyValue = Memory.Range(7, 22, Some(Value.put(7, 10000.seconds)), Value.remove(None))
 
         //        val upperLevelKeyValue = Memory.remove(5, randomDeadlineOption)
-        //        val lowerLevelKeyValue = Memory.Range(7, 22, Some(Value.Put(Some(7), randomDeadlineOption)), Value.Remove(randomDeadlineOption))
+        //        val lowerLevelKeyValue = Memory.Range(7, 22, Some(Value.put(Some(7), randomDeadlineOption)), Value.remove(randomDeadlineOption))
 
         println
         println("upperLevelKeyValue: " + upperLevelKeyValue)

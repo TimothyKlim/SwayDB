@@ -104,7 +104,7 @@ sealed trait SegmentAssignerSpec extends TestBase {
     }
 
     "assign KeyValues to second Segment when none of the keys belong to the first Segment" in {
-      val segment1 = TestSegment(Slice(Transient.put(1), Transient.Range[FromValue, RangeValue](2, 10, None, Value.Remove(10.seconds.fromNow))).updateStats).assertGet
+      val segment1 = TestSegment(Slice(Transient.put(1), Transient.Range[FromValue, RangeValue](2, 10, None, Value.remove(10.seconds.fromNow))).updateStats).assertGet
       val segment2 = TestSegment(Slice(Transient.put(10)).updateStats).assertGet
       val segments = Seq(segment1, segment2)
 
@@ -113,9 +113,9 @@ sealed trait SegmentAssignerSpec extends TestBase {
           keyValues =
             Slice(
               Memory.put(10),
-              Memory.Range(11, 20, None, Value.Update(11)),
+              Memory.Range(11, 20, None, Value.update(11)),
               Memory.remove(20),
-              randomGroup(Slice(Memory.remove(30), Memory.Range(40, 50, None, Value.Update("update"))).toTransient).toMemory
+              randomGroup(Slice(Memory.remove(30), Memory.Range(40, 50, None, Value.update("update"))).toTransient).toMemory
             ),
           segments = segments
         ).assertGet
@@ -125,7 +125,7 @@ sealed trait SegmentAssignerSpec extends TestBase {
     }
 
     "assign gap KeyValue to the first Segment if the first Segment already has a key-value assigned to it" in {
-      val segment1 = TestSegment(Slice(Transient.put(1), Transient.Range[FromValue, RangeValue](2, 10, None, Value.Remove(None, None))).updateStats).assertGet
+      val segment1 = TestSegment(Slice(Transient.put(1), Transient.Range[FromValue, RangeValue](2, 10, None, Value.remove(None, None))).updateStats).assertGet
       val segment2 = TestSegment(Slice(Transient.remove(20)).updateStats).assertGet
       val segments = Seq(segment1, segment2)
 
@@ -134,8 +134,8 @@ sealed trait SegmentAssignerSpec extends TestBase {
         Slice(
           Memory.put(1, 1),
           Memory.put(15),
-          randomGroup(Slice(Memory.remove(16), Memory.Range(17, 18, None, Value.Update("update"))).toTransient).toMemory,
-          Memory.Range(16, 20, None, Value.Update(16))
+          randomGroup(Slice(Memory.remove(16), Memory.Range(17, 18, None, Value.update("update"))).toTransient).toMemory,
+          Memory.Range(16, 20, None, Value.update(16))
         )
 
       val result = SegmentAssigner.assign(keyValues, segments).assertGet
@@ -145,7 +145,7 @@ sealed trait SegmentAssignerSpec extends TestBase {
     }
 
     "assign gap KeyValue to the second Segment if the first Segment has no key-value assigned to it" in {
-      val segment1 = TestSegment(Slice(Transient.put(1), Transient.Range[FromValue, RangeValue](2, 10, None, Value.Remove(1.second.fromNow))).updateStats).assertGet
+      val segment1 = TestSegment(Slice(Transient.put(1), Transient.Range[FromValue, RangeValue](2, 10, None, Value.remove(1.second.fromNow))).updateStats).assertGet
       val segment2 = TestSegment(Slice(Transient.remove(20)).updateStats).assertGet
       val segments = Seq(segment1, segment2)
 
@@ -153,8 +153,8 @@ sealed trait SegmentAssignerSpec extends TestBase {
       val keyValues =
         Slice(
           Memory.put(15),
-          randomGroup(Slice(Memory.remove(16), Memory.Range(17, 18, None, Value.Update("update"))).toTransient).toMemory,
-          Memory.Range(20, 100, None, Value.Update(20))
+          randomGroup(Slice(Memory.remove(16), Memory.Range(17, 18, None, Value.update("update"))).toTransient).toMemory,
+          Memory.Range(20, 100, None, Value.update(20))
         )
 
       val result = SegmentAssigner.assign(keyValues, segments).assertGet
@@ -165,13 +165,13 @@ sealed trait SegmentAssignerSpec extends TestBase {
 
     "assign gap Range KeyValue to all Segments that fall within the Range's toKey" in {
       // 1 - 10(exclusive)
-      val segment1 = TestSegment(Slice(Transient.put(1), Transient.Range[FromValue, RangeValue](2, 10, None, Value.Remove(None, None))).updateStats).assertGet
+      val segment1 = TestSegment(Slice(Transient.put(1), Transient.Range[FromValue, RangeValue](2, 10, None, Value.remove(None, None))).updateStats).assertGet
       // 20 - 20
       val segment2 = TestSegment(Slice(Transient.remove(20)).updateStats).assertGet
       //21 - 30
-      val segment3 = TestSegment(Slice(Transient.Range[FromValue, RangeValue](21, 30, None, Value.Remove(None, None)), Transient.put(30)).updateStats).assertGet
+      val segment3 = TestSegment(Slice(Transient.Range[FromValue, RangeValue](21, 30, None, Value.remove(None, None)), Transient.put(30)).updateStats).assertGet
       //40 - 60
-      val segment4 = TestSegment(Slice(Transient.remove(40), Transient.Range[FromValue, RangeValue](41, 50, None, Value.Remove(None, None)), Transient.put(60)).updateStats).assertGet
+      val segment4 = TestSegment(Slice(Transient.remove(40), Transient.Range[FromValue, RangeValue](41, 50, None, Value.remove(None, None)), Transient.put(60)).updateStats).assertGet
       //70 - 80
       val segment5 = TestSegment(Slice(Transient.put(70), Transient.remove(80)).updateStats).assertGet
       val segments = Seq(segment1, segment2, segment3, segment4, segment5)
@@ -180,14 +180,14 @@ sealed trait SegmentAssignerSpec extends TestBase {
       //all next overlapping Segments.
       val keyValues =
       Slice(
-        Memory.Range(15, 50, Some(Value.Remove(None, None)), Value.Update(10))
+        Memory.Range(15, 50, Some(Value.remove(None, None)), Value.update(10))
       )
 
       def assertResult(assignments: mutable.Map[Segment, Slice[KeyValue.ReadOnly]]) = {
         assignments.size shouldBe 3
-        assignments.find(_._1 == segment2).assertGet._2 should contain only Memory.Range(15, 21, Some(Value.Remove(None, None)), Value.Update(10))
-        assignments.find(_._1 == segment3).assertGet._2 should contain only Memory.Range(21, 40, None, Value.Update(10))
-        assignments.find(_._1 == segment4).assertGet._2 should contain only Memory.Range(40, 50, None, Value.Update(10))
+        assignments.find(_._1 == segment2).assertGet._2 should contain only Memory.Range(15, 21, Some(Value.remove(None, None)), Value.update(10))
+        assignments.find(_._1 == segment3).assertGet._2 should contain only Memory.Range(21, 40, None, Value.update(10))
+        assignments.find(_._1 == segment4).assertGet._2 should contain only Memory.Range(40, 50, None, Value.update(10))
       }
 
       assertResult(SegmentAssigner.assign(keyValues, segments).assertGet)
@@ -216,7 +216,7 @@ sealed trait SegmentAssignerSpec extends TestBase {
     "assign key value to the first segment and split out to other Segment when the key is the new smallest and the range spreads onto other Segments" in {
       val segment1 = TestSegment(Slice(Transient.put(1), Transient.put(2)).updateStats).assertGet
       val segment2 = TestSegment(Slice(Transient.put(4), Transient.put(5)).updateStats).assertGet
-      val segment3 = TestSegment(Slice(Transient.Range[FromValue, RangeValue](6, 10, Some(Value.Remove(None, None)), Value.Update(10)), Transient.remove(10)).updateStats).assertGet
+      val segment3 = TestSegment(Slice(Transient.Range[FromValue, RangeValue](6, 10, Some(Value.remove(None, None)), Value.update(10)), Transient.remove(10)).updateStats).assertGet
 
       //segment1 - 1 - 2
       //segment2 - 4 - 5
@@ -224,20 +224,20 @@ sealed trait SegmentAssignerSpec extends TestBase {
       val segments = Seq(segment1, segment2, segment3)
 
       //insert range 0 - 20. This overlaps all 3 Segment and key-values will get sliced and distributed to all Segments.
-      SegmentAssigner.assign(Slice(Memory.Range(0, 20, Some(Value.Put(0)), Value.Remove(None, None))), segments).assertGet ==> {
+      SegmentAssigner.assign(Slice(Memory.Range(0, 20, Some(Value.put(0)), Value.remove(None, None))), segments).assertGet ==> {
         assignments =>
           assignments.size shouldBe 3
-          assignments.find(_._1 == segment1).assertGet._2 should contain only Memory.Range(0, 4, Some(Value.Put(0)), Value.Remove(None, None))
-          assignments.find(_._1 == segment2).assertGet._2 should contain only Memory.Range(4, 6, None, Value.Remove(None, None))
-          assignments.find(_._1 == segment3).assertGet._2 should contain only Memory.Range(6, 20, None, Value.Remove(None, None))
+          assignments.find(_._1 == segment1).assertGet._2 should contain only Memory.Range(0, 4, Some(Value.put(0)), Value.remove(None, None))
+          assignments.find(_._1 == segment2).assertGet._2 should contain only Memory.Range(4, 6, None, Value.remove(None, None))
+          assignments.find(_._1 == segment3).assertGet._2 should contain only Memory.Range(6, 20, None, Value.remove(None, None))
       }
     }
 
     "debugger" in {
-      val segment1 = TestSegment(Slice(Memory.put(1), Memory.Range(26074, 26075, None, Value.Update(None, None, None))).toTransient).assertGet
-      val segment2 = TestSegment(Slice(Memory.put(26075), Memory.Range(28122, 28123, None, Value.Update(None, None, None))).toTransient).assertGet
-      val segment3 = TestSegment(Slice(Memory.put(28123), Memory.Range(32218, 32219, None, Value.Update(None, None, None))).toTransient).assertGet
-      val segment4 = TestSegment(Slice(Memory.put(32219), Memory.Range(40410, 40411, None, Value.Update(None, None, None))).toTransient).assertGet
+      val segment1 = TestSegment(Slice(Memory.put(1), Memory.Range(26074, 26075, None, Value.update(None, None, None))).toTransient).assertGet
+      val segment2 = TestSegment(Slice(Memory.put(26075), Memory.Range(28122, 28123, None, Value.update(None, None, None))).toTransient).assertGet
+      val segment3 = TestSegment(Slice(Memory.put(28123), Memory.Range(32218, 32219, None, Value.update(None, None, None))).toTransient).assertGet
+      val segment4 = TestSegment(Slice(Memory.put(32219), Memory.Range(40410, 40411, None, Value.update(None, None, None))).toTransient).assertGet
       val segment5 = TestSegment(Slice(Memory.put(74605), Memory.put(100000)).toTransient).assertGet
 
       val segments = Seq(segment1, segment2, segment3, segment4, segment5)
@@ -271,18 +271,18 @@ sealed trait SegmentAssignerSpec extends TestBase {
           result.values.head should contain only Memory.remove(10)
       }
 
-      SegmentAssigner.assign(Slice(Memory.Range(10, 20, Some(Value.Put(10)), Value.Remove(None, None))), segments).assertGet ==> {
+      SegmentAssigner.assign(Slice(Memory.Range(10, 20, Some(Value.put(10)), Value.remove(None, None))), segments).assertGet ==> {
         result =>
           result.size shouldBe 1
           result.keys.head.path shouldBe segment4.path
-          result.values.head should contain only Memory.Range(10, 20, Some(Value.Put(10)), Value.Remove(None, None))
+          result.values.head should contain only Memory.Range(10, 20, Some(Value.put(10)), Value.remove(None, None))
       }
 
-      SegmentAssigner.assign(Slice(randomGroup(Slice(Memory.Range(10, 20, Some(Value.Put(10)), Value.Remove(None, None))).toTransient).toMemory), segments).assertGet ==> {
+      SegmentAssigner.assign(Slice(randomGroup(Slice(Memory.Range(10, 20, Some(Value.put(10)), Value.remove(None, None))).toTransient).toMemory), segments).assertGet ==> {
         result =>
           result.size shouldBe 1
           result.keys.head.path shouldBe segment4.path
-          unzipGroups(result.values.head).head shouldBe Memory.Range(10, 20, Some(Value.Put(10)), Value.Remove(None, None))
+          unzipGroups(result.values.head).head shouldBe Memory.Range(10, 20, Some(Value.put(10)), Value.remove(None, None))
       }
     }
 

@@ -34,7 +34,7 @@ class MergeListSpec extends WordSpec with Matchers with CommonAssertions with Te
   "MergeList" should {
     //mutate the state of this List and assert.
     var list = MergeList[KeyValue.ReadOnly.Range, KeyValue.ReadOnly](Slice[KeyValue.ReadOnly](1, 2, 3))
-    val range = Memory.Range(1, 2, None, Value.Update(1))
+    val range = Memory.Range(1, 2, None, Value.update(1))
 
     "store key-values" in {
       list.depth shouldBe 1
@@ -103,7 +103,7 @@ class MergeListSpec extends WordSpec with Matchers with CommonAssertions with Te
         MergeList[KeyValue.ReadOnly.Range, KeyValue.ReadOnly](Slice[KeyValue.ReadOnly](5, 6)) append
         MergeList[KeyValue.ReadOnly.Range, KeyValue.ReadOnly](Slice[KeyValue.ReadOnly](7, 8))
 
-    val range = Memory.Range(1, 2, None, Value.Update(1))
+    val range = Memory.Range(1, 2, None, Value.update(1))
 
     "store key-values" in {
       list.depth shouldBe 4

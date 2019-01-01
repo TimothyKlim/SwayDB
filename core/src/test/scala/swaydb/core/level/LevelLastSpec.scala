@@ -76,14 +76,14 @@ sealed trait LevelLastSpec extends TestBase with MockFactory with Benchmark {
 
     "return None if the Level contains last Remove range with None fromValue" in {
       assertOnLevel(
-        keyValues = Slice(Memory.Range(1, 100, None, Value.Remove(None))),
+        keyValues = Slice(Memory.Range(1, 100, None, Value.remove(None))),
         assertion = _.last.assertGetOpt shouldBe empty
       )
     }
 
     "return None if the Level contains last Remove range with Remove fromValue" in {
       assertOnLevel(
-        keyValues = Slice(Memory.Range(1, 100, Some(Value.Remove(None)), Value.Remove(None))),
+        keyValues = Slice(Memory.Range(1, 100, Some(Value.remove(None)), Value.remove(None))),
         assertion = _.last.assertGetOpt shouldBe empty
       )
     }
@@ -97,21 +97,21 @@ sealed trait LevelLastSpec extends TestBase with MockFactory with Benchmark {
 
     "return last if the Level contains last Remove Range with Put fromValue" in {
       assertOnLevel(
-        keyValues = Slice(Memory.Range(1, 100, Some(Value.Put(1)), Value.Remove(None))),
+        keyValues = Slice(Memory.Range(1, 100, Some(Value.put(1)), Value.remove(None))),
         assertion = _.last.assertGet shouldBe Memory.put(1, 1)
       )
     }
 
     "return last if the Level contains last Put Range with Put rangeValue" in {
       assertOnLevel(
-        keyValues = Slice(Memory.Range(1, 100, Some(Value.Put(1)), Value.Update(100))),
+        keyValues = Slice(Memory.Range(1, 100, Some(Value.put(1)), Value.update(100))),
         assertion = _.last.assertGet shouldBe Memory.put(1, 1)
       )
     }
 
     "return last if the Level's first key-value is a Remove range and second key-value is Put" in {
       assertOnLevel(
-        keyValues = Slice(Memory.Range(1, 100, Some(Value.Remove(None)), Value.Remove(None)), Memory.put(101, 101)),
+        keyValues = Slice(Memory.Range(1, 100, Some(Value.remove(None)), Value.remove(None)), Memory.put(101, 101)),
         assertion = _.last.assertGet shouldBe Memory.put(101, 101)
       )
     }
@@ -136,7 +136,7 @@ sealed trait LevelLastSpec extends TestBase with MockFactory with Benchmark {
 
     "return second key-value from lower Level if the first last was removed by Remove range in upper Level" in {
       assertOnLevel(
-        upperLevelKeyValues = Slice(Memory.Range(1, 100, Some(Value.Remove(None)), Value.Remove(None))),
+        upperLevelKeyValues = Slice(Memory.Range(1, 100, Some(Value.remove(None)), Value.remove(None))),
         lowerLevelKeyValues = Slice(Memory.put(50, 50), Memory.put(200, 200)),
         assertion = _.last.assertGet shouldBe Memory.put(200, 200)
       )
@@ -144,7 +144,7 @@ sealed trait LevelLastSpec extends TestBase with MockFactory with Benchmark {
 
     "return second key-value from lower Level if the first last was removed by Remove range in upper Level and the highest == remove range's toKey" in {
       assertOnLevel(
-        upperLevelKeyValues = Slice(Memory.Range(1, 100, Some(Value.Remove(None)), Value.Remove(None))),
+        upperLevelKeyValues = Slice(Memory.Range(1, 100, Some(Value.remove(None)), Value.remove(None))),
         lowerLevelKeyValues = Slice(Memory.put(50, 50), Memory.put(100, 100)),
         assertion = _.last.assertGet shouldBe Memory.put(100, 100)
       )
@@ -152,7 +152,7 @@ sealed trait LevelLastSpec extends TestBase with MockFactory with Benchmark {
 
     "return last if the Level's first key-value is an Update Range, second key-value is Put and lower Level contains a last key-value that falls within the range" in {
       assertOnLevel(
-        upperLevelKeyValues = Slice(Memory.Range(1, 100, Some(Value.Remove(None)), Value.Update(100)), Memory.put(101, 101)),
+        upperLevelKeyValues = Slice(Memory.Range(1, 100, Some(Value.remove(None)), Value.update(100)), Memory.put(101, 101)),
         lowerLevelKeyValues = Slice(Memory.put(50, 50)),
         assertion = _.last.assertGet shouldBe Memory.put(101, 101)
       )
@@ -160,7 +160,7 @@ sealed trait LevelLastSpec extends TestBase with MockFactory with Benchmark {
 
     "return last if the Level's last key-value is an Update Range with fromValue set to Remove and lower level contains an range key-value" in {
       assertOnLevel(
-        upperLevelKeyValues = Slice(Memory.put(10, 10), Memory.Range(20, 100, Some(Value.Remove(None)), Value.Update(100))),
+        upperLevelKeyValues = Slice(Memory.put(10, 10), Memory.Range(20, 100, Some(Value.remove(None)), Value.update(100))),
         lowerLevelKeyValues = Slice(Memory.put(90, 90)),
         assertion = _.last.assertGet shouldBe Memory.put(90, 100)
       )
@@ -168,7 +168,7 @@ sealed trait LevelLastSpec extends TestBase with MockFactory with Benchmark {
 
     "return last if the Level's last key-value is an Update Range and lower Level contains a higher key-value that is not in Range" in {
       assertOnLevel(
-        upperLevelKeyValues = Slice(Memory.put(10, 10), Memory.Range(20, 100, None, Value.Update(100))),
+        upperLevelKeyValues = Slice(Memory.put(10, 10), Memory.Range(20, 100, None, Value.update(100))),
         lowerLevelKeyValues = Slice(Memory.put(15, 15)),
         assertion = _.last.assertGet shouldBe Memory.put(15, 15)
       )
@@ -177,7 +177,7 @@ sealed trait LevelLastSpec extends TestBase with MockFactory with Benchmark {
     "return last when lower level has last Range but upper level contains the next highest Put" in {
       assertOnLevel(
         upperLevelKeyValues = Slice(Memory.put(101, 101)),
-        lowerLevelKeyValues = Slice(Memory.Range(1, 10, None, Value.Update(100))),
+        lowerLevelKeyValues = Slice(Memory.Range(1, 10, None, Value.update(100))),
         assertion = _.last.assertGet shouldBe Memory.put(101, 101)
       )
     }
@@ -185,14 +185,14 @@ sealed trait LevelLastSpec extends TestBase with MockFactory with Benchmark {
     "return last when lower level has last Range with fromValue set" in {
       assertOnLevel(
         upperLevelKeyValues = Slice(Memory.put(0, "zero")),
-        lowerLevelKeyValues = Slice(Memory.Range(1, 10, Some(Value.Put("one")), Value.Update(100))),
+        lowerLevelKeyValues = Slice(Memory.Range(1, 10, Some(Value.put("one")), Value.update(100))),
         assertion = _.last.assertGet shouldBe Memory.put(1, Some("one"))
       )
     }
 
     "return last if the Level's first key-value is an Update Range second key-value is Put and lower Level contains a last Remove key-value that falls within the range" in {
       assertOnLevel(
-        upperLevelKeyValues = Slice(Memory.Range(1, 100, Some(Value.Remove(None)), Value.Update(100)), Memory.put(101, 101)),
+        upperLevelKeyValues = Slice(Memory.Range(1, 100, Some(Value.remove(None)), Value.update(100)), Memory.put(101, 101)),
         lowerLevelKeyValues = Slice(Memory.remove(50)),
         assertion = _.last.assertGet shouldBe Memory.put(101, 101)
       )
@@ -203,7 +203,7 @@ sealed trait LevelLastSpec extends TestBase with MockFactory with Benchmark {
         upperLevelKeyValues =
           Slice(
             Memory.remove(1),
-            Memory.Range(50, 100, Some(Value.Remove(None)), Value.Update(100)),
+            Memory.Range(50, 100, Some(Value.remove(None)), Value.update(100)),
             Memory.put(101, 101)
           ),
         lowerLevelKeyValues =
@@ -217,7 +217,7 @@ sealed trait LevelLastSpec extends TestBase with MockFactory with Benchmark {
         upperLevelKeyValues =
           Slice(
             Memory.remove(1),
-            Memory.Range(50, 100, Some(Value.Remove(None)), Value.Update(100)),
+            Memory.Range(50, 100, Some(Value.remove(None)), Value.update(100)),
             Memory.put(101, 101)
           ),
         lowerLevelKeyValues =
@@ -231,7 +231,7 @@ sealed trait LevelLastSpec extends TestBase with MockFactory with Benchmark {
         upperLevelKeyValues =
           Slice(
             Memory.remove(1),
-            Memory.Range(50, 100, Some(Value.Remove(None)), Value.Update(100)),
+            Memory.Range(50, 100, Some(Value.remove(None)), Value.update(100)),
             Memory.put(101, 101)
           ),
         lowerLevelKeyValues =
@@ -245,7 +245,7 @@ sealed trait LevelLastSpec extends TestBase with MockFactory with Benchmark {
         upperLevelKeyValues =
           Slice(
             Memory.remove(1),
-            Memory.Range(50, 100, Some(Value.Remove(None)), Value.Update(100))
+            Memory.Range(50, 100, Some(Value.remove(None)), Value.update(100))
           ),
         lowerLevelKeyValues =
           Slice(Memory.put(51, 51)),
@@ -258,7 +258,7 @@ sealed trait LevelLastSpec extends TestBase with MockFactory with Benchmark {
         upperLevelKeyValues =
           Slice(
             Memory.remove(1),
-            Memory.Range(50, 99, Some(Value.Remove(None)), Value.Update("99 range")),
+            Memory.Range(50, 99, Some(Value.remove(None)), Value.update("99 range")),
             Memory.put(99, 99)
           ),
         lowerLevelKeyValues =
@@ -272,7 +272,7 @@ sealed trait LevelLastSpec extends TestBase with MockFactory with Benchmark {
         upperLevelKeyValues =
           Slice(
             Memory.remove(1),
-            Memory.Range(50, 100, Some(Value.Remove(None)), Value.Update("100 range")),
+            Memory.Range(50, 100, Some(Value.remove(None)), Value.update("100 range")),
             Memory.put(101, 101)
           ),
         lowerLevelKeyValues =
@@ -286,7 +286,7 @@ sealed trait LevelLastSpec extends TestBase with MockFactory with Benchmark {
         upperLevelKeyValues =
           Slice(
             Memory.remove(1),
-            Memory.Range(50, 100, Some(Value.Remove(None)), Value.Update("100 range")),
+            Memory.Range(50, 100, Some(Value.remove(None)), Value.update("100 range")),
             Memory.put(101, 101)
           ),
         lowerLevelKeyValues =
@@ -298,7 +298,7 @@ sealed trait LevelLastSpec extends TestBase with MockFactory with Benchmark {
         upperLevelKeyValues =
           Slice(
             Memory.remove(1),
-            Memory.Range(50, 100, Some(Value.Remove(None)), Value.Update("100 range")),
+            Memory.Range(50, 100, Some(Value.remove(None)), Value.update("100 range")),
             Memory.remove(101)
           ),
         lowerLevelKeyValues =
@@ -319,7 +319,7 @@ sealed trait LevelLastSpec extends TestBase with MockFactory with Benchmark {
         lowerLevelKeyValues =
           Slice(
             Memory.remove(1),
-            Memory.Range(50, 100, Some(Value.Remove(None)), Value.Update("100 range")),
+            Memory.Range(50, 100, Some(Value.remove(None)), Value.update("100 range")),
             Memory.put(101, 101)
           ),
         assertion = _.last.assertGet shouldBe Memory.put(101, 101)

@@ -97,14 +97,14 @@ sealed trait SegmentLowerSpec extends TestBase with ScalaFutures with PrivateMet
 
     "get the lower key from the segment that has only 1 Range key" in {
       assertOnSegment(
-        keyValues = Slice(Memory.Range(1, 10, None, Value.Update("ten"))),
+        keyValues = Slice(Memory.Range(1, 10, None, Value.update("ten"))),
         assertion =
           segment => {
             segment.lower(0).assertGetOpt shouldBe empty
             segment.lower(1).assertGetOpt shouldBe empty
             (2 to 15) foreach {
               i =>
-                segment.lower(i).assertGet shouldBe Memory.Range(1, 10, None, Value.Update("ten"))
+                segment.lower(i).assertGet shouldBe Memory.Range(1, 10, None, Value.update("ten"))
             }
           }
       )
@@ -134,10 +134,10 @@ sealed trait SegmentLowerSpec extends TestBase with ScalaFutures with PrivateMet
       assertOnSegment(
         keyValues = Slice(
           Memory.put(1, 1),
-          Memory.Range(2, 5, None, Value.Remove(None, None)),
+          Memory.Range(2, 5, None, Value.remove(None, None)),
           Memory.remove(10),
-          Memory.Range(11, 20, None, Value.Update(11)),
-          Memory.Range(20, 30, None, Value.Update(20))
+          Memory.Range(11, 20, None, Value.update(11)),
+          Memory.Range(20, 30, None, Value.update(20))
         ),
         assertionWithKeyValues =
           (keyValues, segment) => {

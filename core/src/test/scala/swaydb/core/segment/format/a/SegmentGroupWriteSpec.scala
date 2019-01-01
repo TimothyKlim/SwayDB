@@ -78,7 +78,7 @@ sealed trait SegmentGroupWriteSpec extends TestBase with ScalaFutures with Priva
           eitherOne(
             left = {
               println("Range Remove used")
-              Slice(Memory.Range(0, Int.MaxValue, Some(Value.Remove(None, None)), Value.Remove(None, None))).toTransient
+              Slice(Memory.Range(0, Int.MaxValue, Some(Value.remove(None, None)), Value.remove(None, None))).toTransient
             },
             right = {
               println("Fixed Remove used")
@@ -106,7 +106,7 @@ sealed trait SegmentGroupWriteSpec extends TestBase with ScalaFutures with Priva
             lastSegment.get(keyValue.key).assertGet match {
               case _: KeyValue.ReadOnly.Remove =>
               case remove: KeyValue.ReadOnly.Range =>
-                remove.fetchFromOrElseRangeValue.assertGet shouldBe Value.Remove(None, None)
+                remove.fetchFromOrElseRangeValue.assertGet shouldBe Value.remove(None, None)
               case actual =>
                 fail(s"Expected Remove found ${actual.getClass.getName}")
             }

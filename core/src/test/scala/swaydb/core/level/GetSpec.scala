@@ -162,7 +162,7 @@ sealed trait LevelGetSpec extends TestBase with MockFactory with Benchmark {
 
     "return None for Remove Range key-value" in {
       assertOnLevel(
-        keyValues = Slice(Memory.Range(1, 10, None, Value.Remove(None))),
+        keyValues = Slice(Memory.Range(1, 10, None, Value.remove(None))),
         assertion =
           level =>
             (0 to 15) foreach {
@@ -174,9 +174,9 @@ sealed trait LevelGetSpec extends TestBase with MockFactory with Benchmark {
       assertOnLevel(
         keyValues =
           Slice(
-            Memory.Range(1, 10, None, Value.Remove(None)),
-            Memory.Range(10, 20, Some(Value.Remove(None)), Value.Remove(None)),
-            Memory.Range(25, 30, None, Value.Remove(None))
+            Memory.Range(1, 10, None, Value.remove(None)),
+            Memory.Range(10, 20, Some(Value.remove(None)), Value.remove(None)),
+            Memory.Range(25, 30, None, Value.remove(None))
           ),
         assertion =
           level =>
@@ -189,7 +189,7 @@ sealed trait LevelGetSpec extends TestBase with MockFactory with Benchmark {
 
     "return None for Remove Range with Put from value" in {
       assertOnLevel(
-        keyValues = Slice(Memory.Range(1, 10, Some(Value.Put("one")), Value.Remove(None))),
+        keyValues = Slice(Memory.Range(1, 10, Some(Value.put("one")), Value.remove(None))),
         assertion =
           level => {
             level.get(0).assertGetOpt shouldBe empty
@@ -203,8 +203,8 @@ sealed trait LevelGetSpec extends TestBase with MockFactory with Benchmark {
 
       assertOnLevel(
         keyValues = Slice(
-          Memory.Range(1, 10, Some(Value.Put("one")), Value.Remove(None)),
-          Memory.Range(20, 30, Some(Value.Put("twenty")), Value.Remove(None))
+          Memory.Range(1, 10, Some(Value.put("one")), Value.remove(None)),
+          Memory.Range(20, 30, Some(Value.put("twenty")), Value.remove(None))
         ),
         assertion =
           level => {
@@ -225,7 +225,7 @@ sealed trait LevelGetSpec extends TestBase with MockFactory with Benchmark {
 
     "return None for Remove Range with Remove fromValue" in {
       assertOnLevel(
-        keyValues = Slice(Memory.Range(1, 10, Some(Value.Remove(None)), Value.Remove(None))),
+        keyValues = Slice(Memory.Range(1, 10, Some(Value.remove(None)), Value.remove(None))),
         assertion =
           level =>
             (0 to 10) foreach {
@@ -236,8 +236,8 @@ sealed trait LevelGetSpec extends TestBase with MockFactory with Benchmark {
 
       assertOnLevel(
         keyValues = Slice(
-          Memory.Range(1, 10, Some(Value.Remove(None)), Value.Remove(None)),
-          Memory.Range(20, 30, Some(Value.Remove(None)), Value.Remove(None))
+          Memory.Range(1, 10, Some(Value.remove(None)), Value.remove(None)),
+          Memory.Range(20, 30, Some(Value.remove(None)), Value.remove(None))
         ),
         assertion =
           level =>
@@ -250,7 +250,7 @@ sealed trait LevelGetSpec extends TestBase with MockFactory with Benchmark {
 
     "return Put Range key-value that doesn't have existing Put key-values but Range's fromValue is set to Put" in {
       assertOnLevel(
-        keyValues = Slice(Memory.Range(1, 10, Some(Value.Put(1)), Value.Update(10))),
+        keyValues = Slice(Memory.Range(1, 10, Some(Value.put(1)), Value.update(10))),
         assertion =
           level => {
             level.get(0).assertGetOpt shouldBe empty
@@ -266,8 +266,8 @@ sealed trait LevelGetSpec extends TestBase with MockFactory with Benchmark {
       assertOnLevel(
         keyValues =
           Slice(
-            Memory.Range(1, 10, Some(Value.Put(1)), Value.Update(10)),
-            Memory.Range(20, 30, Some(Value.Put(20)), Value.Update(10))
+            Memory.Range(1, 10, Some(Value.put(1)), Value.update(10)),
+            Memory.Range(20, 30, Some(Value.put(20)), Value.update(10))
           ),
         assertion =
           level => {
@@ -291,7 +291,7 @@ sealed trait LevelGetSpec extends TestBase with MockFactory with Benchmark {
 
     "return Put Range key-value that doesn't have existing Put key-values but Range's fromValue is set to Remove" in {
       assertOnLevel(
-        keyValues = Slice(Memory.Range(1, 10, Some(Value.Remove(None)), Value.Update(10))),
+        keyValues = Slice(Memory.Range(1, 10, Some(Value.remove(None)), Value.update(10))),
         assertion =
           level =>
             (0 to 11) foreach {
@@ -303,8 +303,8 @@ sealed trait LevelGetSpec extends TestBase with MockFactory with Benchmark {
       assertOnLevel(
         keyValues =
           Slice(
-            Memory.Range(1, 10, Some(Value.Remove(None)), Value.Update(10)),
-            Memory.Range(20, 30, Some(Value.Remove(None)), Value.Update(10))
+            Memory.Range(1, 10, Some(Value.remove(None)), Value.update(10)),
+            Memory.Range(20, 30, Some(Value.remove(None)), Value.update(10))
           ),
         assertion =
           level =>
@@ -317,7 +317,7 @@ sealed trait LevelGetSpec extends TestBase with MockFactory with Benchmark {
 
     "return Put Range key-value that doesn't have existing Put key-values" in {
       assertOnLevel(
-        keyValues = Slice(Memory.Range(1, 10, None, Value.Update(10))),
+        keyValues = Slice(Memory.Range(1, 10, None, Value.update(10))),
         assertion =
           level =>
             (0 to 11) foreach {
@@ -329,8 +329,8 @@ sealed trait LevelGetSpec extends TestBase with MockFactory with Benchmark {
       assertOnLevel(
         keyValues =
           Slice(
-            Memory.Range(1, 10, None, Value.Update(10)),
-            Memory.Range(20, 30, None, Value.Update(10))
+            Memory.Range(1, 10, None, Value.update(10)),
+            Memory.Range(20, 30, None, Value.update(10))
           ),
         assertion =
           level =>
@@ -345,10 +345,10 @@ sealed trait LevelGetSpec extends TestBase with MockFactory with Benchmark {
       assertOnLevel(
         keyValues =
           Slice(
-            Memory.Range(1, 10, None, Value.Update(10)),
+            Memory.Range(1, 10, None, Value.update(10)),
             Memory.remove(11),
             Memory.put(20, 20),
-            Memory.Range(21, 30, None, Value.Update(30))
+            Memory.Range(21, 30, None, Value.update(30))
           ),
         assertion =
           level => {
@@ -471,7 +471,7 @@ sealed trait LevelGetSpec extends TestBase with MockFactory with Benchmark {
     "return None for removed Range key-value from lower Level" in {
       assertOnLevel(
         upperLevelKeyValues = Slice.empty,
-        lowerLevelKeyValues = Slice(Memory.Range(1, 10, None, Value.Remove(None))),
+        lowerLevelKeyValues = Slice(Memory.Range(1, 10, None, Value.remove(None))),
         assertion =
           level => {
             (0 to 11) foreach {
@@ -484,7 +484,7 @@ sealed trait LevelGetSpec extends TestBase with MockFactory with Benchmark {
 
     "return None for removed Range upper Level key-value that also has valid Put key-values in lower Level" in {
       assertOnLevel(
-        upperLevelKeyValues = Slice(Memory.Range(1, 10, None, Value.Remove(None))),
+        upperLevelKeyValues = Slice(Memory.Range(1, 10, None, Value.remove(None))),
         lowerLevelKeyValues = (1 to 9).map(key => Memory.put(key, key)).toSlice,
         assertion =
           level => {
@@ -517,13 +517,13 @@ sealed trait LevelGetSpec extends TestBase with MockFactory with Benchmark {
       //    5  -  9 (removed)
       //0      -      15
       assertOnLevel(
-        upperLevelKeyValues = Slice(Memory.Range(5, 10, None, Value.Remove(None))),
+        upperLevelKeyValues = Slice(Memory.Range(5, 10, None, Value.remove(None))),
         lowerLevelKeyValues = (0 to 15).map(key => Memory.put(key, key)).toSlice,
         assertion = doAssertion(_)
       )
 
       assertOnLevel( //fromValue set to Remove should return the same result.
-        upperLevelKeyValues = Slice(Memory.Range(5, 10, Some(Value.Remove(None)), Value.Remove(None))),
+        upperLevelKeyValues = Slice(Memory.Range(5, 10, Some(Value.remove(None)), Value.remove(None))),
         lowerLevelKeyValues = (0 to 15).map(key => Memory.put(key, key)).toSlice,
         assertion = doAssertion(_)
       )
@@ -533,7 +533,7 @@ sealed trait LevelGetSpec extends TestBase with MockFactory with Benchmark {
       //    5  -  9 (put - removed)
       //0      -      15
       assertOnLevel(
-        upperLevelKeyValues = Slice(Memory.Range(5, 10, Some(Value.Put(5)), Value.Remove(None))),
+        upperLevelKeyValues = Slice(Memory.Range(5, 10, Some(Value.put(5)), Value.remove(None))),
         lowerLevelKeyValues = (0 to 15).map(key => Memory.put(key, key)).toSlice,
         assertion =
           level => {
@@ -560,7 +560,7 @@ sealed trait LevelGetSpec extends TestBase with MockFactory with Benchmark {
       //    5  -  9 (put - removed)
       assertOnLevel(
         upperLevelKeyValues = (0 to 15).map(key => Memory.put(key, key)).toSlice,
-        lowerLevelKeyValues = Slice(Memory.Range(5, 10, Some(Value.Put(5)), Value.Remove(None))),
+        lowerLevelKeyValues = Slice(Memory.Range(5, 10, Some(Value.put(5)), Value.remove(None))),
         assertion =
           level => {
             (0 to 15) foreach {
@@ -573,7 +573,7 @@ sealed trait LevelGetSpec extends TestBase with MockFactory with Benchmark {
 
     "return key-values with update value when upper Level contains Range key-value and lower Level contains actual Put key-values" in {
       assertOnLevel(
-        upperLevelKeyValues = Slice(Memory.Range(5, 10, Some(Value.Put("five")), Value.Update("upper level"))),
+        upperLevelKeyValues = Slice(Memory.Range(5, 10, Some(Value.put("five")), Value.update("upper level"))),
         lowerLevelKeyValues = (0 to 15).map(key => Memory.put(key, key)).toSlice,
         assertion =
           level => {
@@ -597,7 +597,7 @@ sealed trait LevelGetSpec extends TestBase with MockFactory with Benchmark {
 
     "return None for key-values that are removed from lower Level but contain Range update in upper Level" in {
       assertOnLevel(
-        upperLevelKeyValues = Slice(Memory.Range(5, 10, None, Value.Update("upper level"))),
+        upperLevelKeyValues = Slice(Memory.Range(5, 10, None, Value.update("upper level"))),
         lowerLevelKeyValues = Slice(Memory.remove(5), Memory.put(7, 7), Memory.remove(9)),
         assertion =
           level => {
@@ -621,12 +621,12 @@ sealed trait LevelGetSpec extends TestBase with MockFactory with Benchmark {
     val keyValues =
       Slice(
         Memory.remove(1),
-        Memory.Range(2, 10, None, Value.Remove(None)),
-        Memory.Range(10, 20, Some(Value.Remove(None)), Value.Update(10)),
-        Memory.Range(25, 30, None, Value.Remove(None)),
+        Memory.Range(2, 10, None, Value.remove(None)),
+        Memory.Range(10, 20, Some(Value.remove(None)), Value.update(10)),
+        Memory.Range(25, 30, None, Value.remove(None)),
         Memory.remove(30),
-        Memory.Range(31, 35, None, Value.Update(30)),
-        Memory.Range(40, 45, Some(Value.Remove(None)), Value.Remove(None))
+        Memory.Range(31, 35, None, Value.update(30)),
+        Memory.Range(40, 45, Some(Value.remove(None)), Value.remove(None))
       )
 
     level.putKeyValues(keyValues).assertGet

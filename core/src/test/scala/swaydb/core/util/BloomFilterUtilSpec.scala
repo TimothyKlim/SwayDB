@@ -72,7 +72,7 @@ class BloomFilterUtilSpec extends TestBase {
 
       //fromValue is remove but it's not a remove ange
       BloomFilterUtil.initBloomFilter(
-        keyValues = Slice(Transient.Range[Value.FromValue, Value.RangeValue](1, 2, Some(Value.Remove(None, randomNextTimeOption)), Value.Update(100))),
+        keyValues = Slice(Transient.Range[Value.FromValue, Value.RangeValue](1, 2, Some(Value.Remove(None, randomNextTimeOption)), Value.update(100))),
         bloomFilterFalsePositiveRate = 0.1
       ) shouldBe defined
     }
