@@ -28,10 +28,10 @@ import swaydb.core.queue.KeyValueLimiter
 import swaydb.core.util.TryUtil
 import swaydb.core.util.TryUtil._
 import swaydb.data.slice.Slice
-
 import scala.annotation.tailrec
 import scala.collection.mutable.ListBuffer
 import scala.util.{Failure, Success, Try}
+import swaydb.data.order.KeyOrder
 
 /**
   * SegmentGroups will always group key-values with Groups at the head of key-value List. Groups cannot be randomly
@@ -246,14 +246,14 @@ private[merge] object SegmentGrouper extends LazyLogging {
     }
 
   @tailrec
-  def addKeyValues(keyValues: MergeList,
+  def addKeyValues(keyValues: MergeList[Memory.Range, KeyValue.ReadOnly],
                    splits: ListBuffer[ListBuffer[KeyValue.WriteOnly]],
                    minSegmentSize: Long,
                    forInMemory: Boolean,
                    isLastLevel: Boolean,
                    bloomFilterFalsePositiveRate: Double,
                    compressDuplicateValues: Boolean)(implicit groupingStrategy: Option[KeyValueGroupingStrategyInternal],
-                                                     ordering: Ordering[Slice[Byte]]): Try[Unit] =
+                                                     keyOrder: KeyOrder[Slice[Byte]]): Try[Unit] =
     keyValues.headOption match {
       case Some(keyValue) =>
         keyValue match {
@@ -261,7 +261,7 @@ private[merge] object SegmentGrouper extends LazyLogging {
             keyValue.segmentCache.getAll() match {
               case Success(groupKeyValues) =>
                 addKeyValues(
-                  keyValues = MergeList(groupKeyValues) append keyValues.dropHead(),
+                  keyValues = MergeList[Memory.Range, KeyValue.ReadOnly](groupKeyValues) append keyValues.dropHead(),
                   splits = splits,
                   minSegmentSize = minSegmentSize,
                   forInMemory = forInMemory,
@@ -309,7 +309,7 @@ private[merge] object SegmentGrouper extends LazyLogging {
                   isLastLevel: Boolean,
                   bloomFilterFalsePositiveRate: Double,
                   compressDuplicateValues: Boolean)(implicit groupingStrategy: Option[KeyValueGroupingStrategyInternal],
-                                                    ordering: Ordering[Slice[Byte]]): Try[Unit] = {
+                                                    keyOrder: KeyOrder[Slice[Byte]]): Try[Unit] = {
 
     def doAdd(keyValueToAdd: Option[KeyValue.WriteOnly] => KeyValue.WriteOnly): Try[Unit] = {
 
@@ -383,89 +383,173 @@ private[merge] object SegmentGrouper extends LazyLogging {
         }
     }
 
-    try {
-      keyValueToAdd match {
-        case fixed: KeyValue.ReadOnly.Fixed =>
-          if (isLastLevel && fixed.isOverdue())
-            TryUtil.successUnit
-          else
-            fixed match {
-              case Memory.Put(key, value, deadline) =>
-                doAdd(Transient.Put(key, value, bloomFilterFalsePositiveRate, _, deadline, compressDuplicateValues))
-
-              case put: Persistent.Put =>
-                put.getOrFetchValue flatMap {
-                  value =>
-                    doAdd(Transient.Put(put.key, value, bloomFilterFalsePositiveRate, _, put.deadline, compressDuplicateValues))
-                }
-
-              case remove @ (_: Memory.Remove | _: Persistent.Remove) =>
-                if (!isLastLevel)
-                  doAdd(Transient.Remove(keyValueToAdd.key, bloomFilterFalsePositiveRate, _, remove.deadline))
-                else
-                  TryUtil.successUnit
-
-              case Memory.Update(key, value, deadline) =>
-                if (!isLastLevel)
-                  doAdd(Transient.Update(key, value, bloomFilterFalsePositiveRate, _, deadline, compressDuplicateValues))
-                else
-                  TryUtil.successUnit
-
-              case update: Persistent.Update =>
-                if (!isLastLevel)
-                  update.getOrFetchValue flatMap {
-                    value =>
-                      doAdd(Transient.Update(update.key, value, bloomFilterFalsePositiveRate, _, update.deadline, compressDuplicateValues))
-                  }
-                else
-                  TryUtil.successUnit
-
-            }
-        case range: KeyValue.ReadOnly.Range =>
-          if (isLastLevel)
-            range.fetchFromValue match {
-              case Success(fromValue) =>
-                fromValue match {
-                  case Some(fromValue) =>
-                    fromValue match {
-                      case put @ Value.Put(fromValue, deadline) =>
-                        if (put.hasTimeLeft())
-                          doAdd(Transient.Put(range.fromKey, fromValue, bloomFilterFalsePositiveRate, _, deadline, compressDuplicateValues))
-                        else
-                          TryUtil.successUnit
-
-                      case _: Value.Remove | _: Value.Update =>
-                        TryUtil.successUnit
-                    }
-                  case None =>
-                    TryUtil.successUnit
-                }
-              case Failure(exception) =>
-                Failure(exception)
-            }
-          else
-            range.fetchFromAndRangeValue flatMap {
-              case (fromValue, rangeValue) =>
-                doAdd(Transient.Range(range.fromKey, range.toKey, fromValue, rangeValue, bloomFilterFalsePositiveRate, _))
-            }
-
-        case group: KeyValue.ReadOnly.Group =>
-          group.segmentCache.getAll() flatMap {
-            keyValues =>
-              addKeyValues(
-                keyValues = MergeList(keyValues),
-                splits = splits,
-                minSegmentSize = minSegmentSize,
-                forInMemory = forInMemory,
-                isLastLevel = isLastLevel,
-                bloomFilterFalsePositiveRate = bloomFilterFalsePositiveRate,
-                compressDuplicateValues = compressDuplicateValues
-              )
-          }
-      }
-    } catch {
-      case ex: Throwable =>
-        Failure(ex)
+    Catch {
+//      keyValueToAdd match {
+//        case fixed: KeyValue.ReadOnly.Fixed =>
+//          //          if (isLastLevel && fixed.isOverdue())
+//          //            TryUtil.successUnit
+//          if (???)
+//            TryUtil.successUnit
+//          else
+//            fixed match {
+//              case Memory.Put(key, value, applies, deadline) =>
+//                doAdd(
+//                  Transient.Put(
+//                    key = key,
+//                    value = value,
+//                    deadline = deadline,
+//                    _,
+//                    applies = applies,
+//                    falsePositiveRate = bloomFilterFalsePositiveRate,
+//                    compressDuplicateValues = compressDuplicateValues
+//                  )
+//                )
+//
+//              case put: Persistent.Put =>
+//                put.getOrFetchValueAndApplies flatMap {
+//                  case (value, applies) =>
+//                    doAdd(
+//                      Transient.Put(
+//                        key = put.key,
+//                        value = value,
+//                        deadline = put.deadline,
+//                        _,
+//                        applies = applies,
+//                        falsePositiveRate = bloomFilterFalsePositiveRate,
+//                        compressDuplicateValues = compressDuplicateValues
+//                      )
+//                    )
+//                }
+//
+//              case remove: Memory.Remove =>
+//                if (!isLastLevel)
+//                  doAdd(
+//                    Transient.Remove(
+//                      key = keyValueToAdd.key,
+//                      deadline = remove.deadline,
+//                      _,
+//                      applies = remove.applies,
+//                      falsePositiveRate = bloomFilterFalsePositiveRate
+//                    )
+//                  )
+//                else
+//                  TryUtil.successUnit
+//
+//              case remove: Persistent.Remove =>
+//                if (!isLastLevel)
+//                  remove.getOrFetchApplies flatMap {
+//                    applies =>
+//                      doAdd(
+//                        Transient.Remove(
+//                          key = keyValueToAdd.key,
+//                          deadline = remove.deadline,
+//                          _,
+//                          applies = applies,
+//                          falsePositiveRate = bloomFilterFalsePositiveRate
+//                        )
+//                      )
+//                  }
+//                else
+//                  TryUtil.successUnit
+//
+//              case Memory.Update(key, value, applies, deadline) =>
+//                if (!isLastLevel)
+//                  doAdd(
+//                    Transient.Update(
+//                      key = key,
+//                      value = value,
+//                      deadline = deadline,
+//                      _,
+//                      applies = applies,
+//                      falsePositiveRate = bloomFilterFalsePositiveRate,
+//                      compressDuplicateValues = compressDuplicateValues
+//                    )
+//                  )
+//                else
+//                  TryUtil.successUnit
+//
+//              case update: Persistent.Update =>
+//                if (!isLastLevel)
+//                  update.getOrFetchValueAndApplies flatMap {
+//                    case (value, applies) =>
+//                      doAdd(
+//                        Transient.Update(
+//                          key = update.key,
+//                          value = value,
+//                          deadline = update.deadline,
+//                          _,
+//                          applies = applies,
+//                          falsePositiveRate = bloomFilterFalsePositiveRate,
+//                          compressDuplicateValues = compressDuplicateValues
+//                        )
+//                      )
+//                  }
+//                else
+//                  TryUtil.successUnit
+//
+//            }
+//        case range: KeyValue.ReadOnly.Range =>
+//          if (isLastLevel)
+//            range.fetchFromValue match {
+//              case Success(fromValue) =>
+//                fromValue match {
+//                  case Some(fromValue) =>
+//                    fromValue match {
+//                      case put @ Value.Put(fromValue, applies, deadline) =>
+//                        if (put.hasTimeLeft())
+//                          doAdd(
+//                            Transient.Put(
+//                              key = range.fromKey,
+//                              value = fromValue,
+//                              deadline = deadline,
+//                              _,
+//                              applies = applies,
+//                              falsePositiveRate = bloomFilterFalsePositiveRate,
+//                              compressDuplicateValues = compressDuplicateValues
+//                            )
+//                          )
+//                        else
+//                          TryUtil.successUnit
+//
+//                      case _: Value.Remove | _: Value.Update =>
+//                        TryUtil.successUnit
+//                    }
+//                  case None =>
+//                    TryUtil.successUnit
+//                }
+//              case Failure(exception) =>
+//                Failure(exception)
+//            }
+//          else
+//            range.fetchFromAndRangeValue flatMap {
+//              case (fromValue, rangeValue) =>
+//                doAdd(
+//                  Transient.Range(
+//                    fromKey = range.fromKey,
+//                    toKey = range.toKey,
+//                    fromValue = fromValue,
+//                    rangeValue = rangeValue,
+//                    falsePositiveRate = bloomFilterFalsePositiveRate,
+//                    _
+//                  )
+//                )
+//            }
+//
+//        case group: KeyValue.ReadOnly.Group =>
+//          group.segmentCache.getAll() flatMap {
+//            keyValues =>
+//              addKeyValues(
+//                keyValues = MergeList(keyValues),
+//                splits = splits,
+//                minSegmentSize = minSegmentSize,
+//                forInMemory = forInMemory,
+//                isLastLevel = isLastLevel,
+//                bloomFilterFalsePositiveRate = bloomFilterFalsePositiveRate,
+//                compressDuplicateValues = compressDuplicateValues
+//              )
+//          }
+//      }
+      ???
     }
   }
 }

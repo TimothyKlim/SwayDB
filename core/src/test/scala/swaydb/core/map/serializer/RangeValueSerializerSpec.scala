@@ -20,16 +20,15 @@
 package swaydb.core.map.serializer
 
 import org.scalatest.{Matchers, WordSpec}
-import swaydb.core.TryAssert
+import swaydb.core.{CommonAssertions, TryAssert}
 import swaydb.core.data.Value.{FromValue, RangeValue}
 import swaydb.core.data.Value
 import swaydb.data.slice.Slice
 import swaydb.serializers.Default._
 import swaydb.serializers._
-
 import scala.concurrent.duration._
 
-class RangeValueSerializerSpec extends WordSpec with Matchers with TryAssert {
+class RangeValueSerializerSpec extends WordSpec with Matchers with TryAssert with CommonAssertions {
 
   import RangeValueSerializers._
 
@@ -56,7 +55,7 @@ class RangeValueSerializerSpec extends WordSpec with Matchers with TryAssert {
   "Serialize Remove range" should {
 
     "Remove None" in {
-      doAssert(Value.Remove(None), swaydb.core.map.serializer.RemoveRange)
+      doAssert(Value.Remove(None, randomNextTimeOption), swaydb.core.map.serializer.RemoveRange)
     }
 
     "Remove Some" in {
@@ -67,7 +66,7 @@ class RangeValueSerializerSpec extends WordSpec with Matchers with TryAssert {
   "Serialize Update range" should {
 
     "Update None None" in {
-      doAssert(Value.Update(None, None), swaydb.core.map.serializer.UpdateRange)
+      doAssert(Value.Update(None, None, randomNextTimeOption), swaydb.core.map.serializer.UpdateRange)
     }
 
     "Update None Some" in {
@@ -105,15 +104,15 @@ class RangeValueSerializerSpec extends WordSpec with Matchers with TryAssert {
   "Serialize Remove Remove range" should {
 
     "Remove None Remove None" in {
-      doAssert(Value.Remove(None), Value.Remove(None), swaydb.core.map.serializer.RemoveRemoveRange)
+      doAssert(Value.Remove(None, randomNextTimeOption), Value.Remove(None, randomNextTimeOption), swaydb.core.map.serializer.RemoveRemoveRange)
     }
 
     "Remove None Remove Some" in {
-      doAssert(Value.Remove(None), Value.Remove(10.seconds.fromNow), swaydb.core.map.serializer.RemoveRemoveRange)
+      doAssert(Value.Remove(None, randomNextTimeOption), Value.Remove(10.seconds.fromNow), swaydb.core.map.serializer.RemoveRemoveRange)
     }
 
     "Remove Some Remove None" in {
-      doAssert(Value.Remove(10.seconds.fromNow), Value.Remove(None), swaydb.core.map.serializer.RemoveRemoveRange)
+      doAssert(Value.Remove(10.seconds.fromNow), Value.Remove(None, randomNextTimeOption), swaydb.core.map.serializer.RemoveRemoveRange)
     }
 
     "Remove Some Remove Some" in {
@@ -125,24 +124,24 @@ class RangeValueSerializerSpec extends WordSpec with Matchers with TryAssert {
 
     //Remove None
     "Remove None Update None None" in {
-      doAssert(Value.Remove(None), Value.Update(None, None), swaydb.core.map.serializer.RemoveUpdateRange)
+      doAssert(Value.Remove(None, randomNextTimeOption), Value.Update(None, None, randomNextTimeOption), swaydb.core.map.serializer.RemoveUpdateRange)
     }
 
     "Remove None Update None Some" in {
-      doAssert(Value.Remove(None), Value.Update(None, 10.seconds), swaydb.core.map.serializer.RemoveUpdateRange)
+      doAssert(Value.Remove(None, randomNextTimeOption), Value.Update(None, 10.seconds), swaydb.core.map.serializer.RemoveUpdateRange)
     }
 
     "Remove None Update Some None" in {
-      doAssert(Value.Remove(None), Value.Update(1, None), swaydb.core.map.serializer.RemoveUpdateRange)
+      doAssert(Value.Remove(None, randomNextTimeOption), Value.Update(1, None), swaydb.core.map.serializer.RemoveUpdateRange)
     }
 
     "Remove None Update Some Some" in {
-      doAssert(Value.Remove(None), Value.Update(1, 10.seconds), swaydb.core.map.serializer.RemoveUpdateRange)
+      doAssert(Value.Remove(None, randomNextTimeOption), Value.Update(1, 10.seconds), swaydb.core.map.serializer.RemoveUpdateRange)
     }
     //Remove Some
 
     "Remove Some Update None None" in {
-      doAssert(Value.Remove(1.second.fromNow), Value.Update(None, None), swaydb.core.map.serializer.RemoveUpdateRange)
+      doAssert(Value.Remove(1.second.fromNow), Value.Update(None, None, randomNextTimeOption), swaydb.core.map.serializer.RemoveUpdateRange)
     }
 
     "Remove Some Update None Some" in {
@@ -163,17 +162,17 @@ class RangeValueSerializerSpec extends WordSpec with Matchers with TryAssert {
 
     //Put None None
     "Put None None Remove None" in {
-      doAssert(Value.Put(None, None), Value.Remove(None), swaydb.core.map.serializer.PutRemoveRange)
+      doAssert(Value.Put(None, None, randomNextTimeOption), Value.Remove(None, randomNextTimeOption), swaydb.core.map.serializer.PutRemoveRange)
     }
 
     //Put None None
     "Put None None Remove Some" in {
-      doAssert(Value.Put(None, None), Value.Remove(2.seconds.fromNow), swaydb.core.map.serializer.PutRemoveRange)
+      doAssert(Value.Put(None, None, randomNextTimeOption), Value.Remove(2.seconds.fromNow), swaydb.core.map.serializer.PutRemoveRange)
     }
 
     //Put None Some
     "Put None Some Remove None" in {
-      doAssert(Value.Put(None, 1.second), Value.Remove(None), swaydb.core.map.serializer.PutRemoveRange)
+      doAssert(Value.Put(None, 1.second), Value.Remove(None, randomNextTimeOption), swaydb.core.map.serializer.PutRemoveRange)
     }
 
     //Put None Some
@@ -183,7 +182,7 @@ class RangeValueSerializerSpec extends WordSpec with Matchers with TryAssert {
 
     //Put None None
     "Put Some None Remove None" in {
-      doAssert(Value.Put(1), Value.Remove(None), swaydb.core.map.serializer.PutRemoveRange)
+      doAssert(Value.Put(1), Value.Remove(None, randomNextTimeOption), swaydb.core.map.serializer.PutRemoveRange)
     }
 
     //Put None None
@@ -193,7 +192,7 @@ class RangeValueSerializerSpec extends WordSpec with Matchers with TryAssert {
 
     //Put Some Some
     "Put Some Some Remove None" in {
-      doAssert(Value.Put(1, 1.second), Value.Remove(None), swaydb.core.map.serializer.PutRemoveRange)
+      doAssert(Value.Put(1, 1.second), Value.Remove(None, randomNextTimeOption), swaydb.core.map.serializer.PutRemoveRange)
     }
 
     //Put Some Some
@@ -207,24 +206,24 @@ class RangeValueSerializerSpec extends WordSpec with Matchers with TryAssert {
 
     //Put None None
     "Put None None Update None None" in {
-      doAssert(Value.Put(None, None), Value.Update(None, None), swaydb.core.map.serializer.PutUpdateRange)
+      doAssert(Value.Put(None, None, randomNextTimeOption), Value.Update(None, None, randomNextTimeOption), swaydb.core.map.serializer.PutUpdateRange)
     }
 
     "Put None None Update None Some" in {
-      doAssert(Value.Put(None, None), Value.Update(None, 1.second), swaydb.core.map.serializer.PutUpdateRange)
+      doAssert(Value.Put(None, None, randomNextTimeOption), Value.Update(None, 1.second), swaydb.core.map.serializer.PutUpdateRange)
     }
 
     "Put None None Update Some None" in {
-      doAssert(Value.Put(None, None), Value.Update(1), swaydb.core.map.serializer.PutUpdateRange)
+      doAssert(Value.Put(None, None, randomNextTimeOption), Value.Update(1), swaydb.core.map.serializer.PutUpdateRange)
     }
 
     "Put None None Update Some Some" in {
-      doAssert(Value.Put(None, None), Value.Update(1, 5.second.fromNow), swaydb.core.map.serializer.PutUpdateRange)
+      doAssert(Value.Put(None, None, randomNextTimeOption), Value.Update(1, 5.second.fromNow), swaydb.core.map.serializer.PutUpdateRange)
     }
 
     //Put None Some
     "Put None Some Update None None" in {
-      doAssert(Value.Put(None, 1.second), Value.Update(None, None), swaydb.core.map.serializer.PutUpdateRange)
+      doAssert(Value.Put(None, 1.second), Value.Update(None, None, randomNextTimeOption), swaydb.core.map.serializer.PutUpdateRange)
     }
 
     "Put None Some Update None Some" in {
@@ -241,7 +240,7 @@ class RangeValueSerializerSpec extends WordSpec with Matchers with TryAssert {
 
     //Put Some None
     "Put Some None Update None None" in {
-      doAssert(Value.Put(1), Value.Update(None, None), swaydb.core.map.serializer.PutUpdateRange)
+      doAssert(Value.Put(1), Value.Update(None, None, randomNextTimeOption), swaydb.core.map.serializer.PutUpdateRange)
     }
 
     "Put Some None Update None Some" in {
@@ -258,7 +257,7 @@ class RangeValueSerializerSpec extends WordSpec with Matchers with TryAssert {
 
     //Put Some Some
     "Put Some Some Update None None" in {
-      doAssert(Value.Put(1, 1.second), Value.Update(None, None), swaydb.core.map.serializer.PutUpdateRange)
+      doAssert(Value.Put(1, 1.second), Value.Update(None, None, randomNextTimeOption), swaydb.core.map.serializer.PutUpdateRange)
     }
 
     "Put Some Some Update None Some" in {
@@ -279,17 +278,17 @@ class RangeValueSerializerSpec extends WordSpec with Matchers with TryAssert {
 
     //Update None None
     "Update None None Remove None" in {
-      doAssert(Value.Update(None, None), Value.Remove(None), swaydb.core.map.serializer.UpdateRemoveRange)
+      doAssert(Value.Update(None, None, randomNextTimeOption), Value.Remove(None, randomNextTimeOption), swaydb.core.map.serializer.UpdateRemoveRange)
     }
 
     //Update None None
     "Update None None Remove Some" in {
-      doAssert(Value.Update(None, None), Value.Remove(2.seconds.fromNow), swaydb.core.map.serializer.UpdateRemoveRange)
+      doAssert(Value.Update(None, None, randomNextTimeOption), Value.Remove(2.seconds.fromNow), swaydb.core.map.serializer.UpdateRemoveRange)
     }
 
     //Update None Some
     "Update None Some Remove None" in {
-      doAssert(Value.Update(None, 1.second), Value.Remove(None), swaydb.core.map.serializer.UpdateRemoveRange)
+      doAssert(Value.Update(None, 1.second), Value.Remove(None, randomNextTimeOption), swaydb.core.map.serializer.UpdateRemoveRange)
     }
 
     //Update None Some
@@ -299,7 +298,7 @@ class RangeValueSerializerSpec extends WordSpec with Matchers with TryAssert {
 
     //Update None None
     "Update Some None Remove None" in {
-      doAssert(Value.Update(1), Value.Remove(None), swaydb.core.map.serializer.UpdateRemoveRange)
+      doAssert(Value.Update(1), Value.Remove(None, randomNextTimeOption), swaydb.core.map.serializer.UpdateRemoveRange)
     }
 
     //Update None None
@@ -309,7 +308,7 @@ class RangeValueSerializerSpec extends WordSpec with Matchers with TryAssert {
 
     //Update Some Some
     "Update Some Some Remove None" in {
-      doAssert(Value.Update(1, 1.second), Value.Remove(None), swaydb.core.map.serializer.UpdateRemoveRange)
+      doAssert(Value.Update(1, 1.second), Value.Remove(None, randomNextTimeOption), swaydb.core.map.serializer.UpdateRemoveRange)
     }
 
     //Update Some Some
@@ -323,24 +322,24 @@ class RangeValueSerializerSpec extends WordSpec with Matchers with TryAssert {
 
     //Update None None
     "Update None None Update None None" in {
-      doAssert(Value.Update(None, None), Value.Update(None, None), swaydb.core.map.serializer.UpdateUpdateRange)
+      doAssert(Value.Update(None, None, randomNextTimeOption), Value.Update(None, None, randomNextTimeOption), swaydb.core.map.serializer.UpdateUpdateRange)
     }
 
     "Update None None Update None Some" in {
-      doAssert(Value.Update(None, None), Value.Update(None, 1.second), swaydb.core.map.serializer.UpdateUpdateRange)
+      doAssert(Value.Update(None, None, randomNextTimeOption), Value.Update(None, 1.second), swaydb.core.map.serializer.UpdateUpdateRange)
     }
 
     "Update None None Update Some None" in {
-      doAssert(Value.Update(None, None), Value.Update(1), swaydb.core.map.serializer.UpdateUpdateRange)
+      doAssert(Value.Update(None, None, randomNextTimeOption), Value.Update(1), swaydb.core.map.serializer.UpdateUpdateRange)
     }
 
     "Update None None Update Some Some" in {
-      doAssert(Value.Update(None, None), Value.Update(1, 5.second.fromNow), swaydb.core.map.serializer.UpdateUpdateRange)
+      doAssert(Value.Update(None, None, randomNextTimeOption), Value.Update(1, 5.second.fromNow), swaydb.core.map.serializer.UpdateUpdateRange)
     }
 
     //Update None Some
     "Update None Some Update None None" in {
-      doAssert(Value.Update(None, 1.second), Value.Update(None, None), swaydb.core.map.serializer.UpdateUpdateRange)
+      doAssert(Value.Update(None, 1.second), Value.Update(None, None, randomNextTimeOption), swaydb.core.map.serializer.UpdateUpdateRange)
     }
 
     "Update None Some Update None Some" in {
@@ -357,7 +356,7 @@ class RangeValueSerializerSpec extends WordSpec with Matchers with TryAssert {
 
     //Update Some None
     "Update Some None Update None None" in {
-      doAssert(Value.Update(1), Value.Update(None, None), swaydb.core.map.serializer.UpdateUpdateRange)
+      doAssert(Value.Update(1), Value.Update(None, None, randomNextTimeOption), swaydb.core.map.serializer.UpdateUpdateRange)
     }
 
     "Update Some None Update None Some" in {
@@ -374,7 +373,7 @@ class RangeValueSerializerSpec extends WordSpec with Matchers with TryAssert {
 
     //Update Some Some
     "Update Some Some Update None None" in {
-      doAssert(Value.Update(1, 1.second), Value.Update(None, None), swaydb.core.map.serializer.UpdateUpdateRange)
+      doAssert(Value.Update(1, 1.second), Value.Update(None, None, randomNextTimeOption), swaydb.core.map.serializer.UpdateUpdateRange)
     }
 
     "Update Some Some Update None Some" in {

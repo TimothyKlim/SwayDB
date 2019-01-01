@@ -70,7 +70,7 @@ class GroupSpec extends TestBase {
         (1 to 10) map {
           i =>
             if (i == 5)
-              Transient.Put(1) //on the 5th iteration add a Put key-values. The 4th group should be returned.
+              Transient.put(1) //on the 5th iteration add a Put key-values. The 4th group should be returned.
             else
               Transient.Group(
                 keyValues = randomizedIntKeyValues(keyValueCount),
@@ -88,7 +88,7 @@ class GroupSpec extends TestBase {
   "uncompressing a Group" should {
     "return a new instance of uncompressed Persistent.Group" in {
       //create group key-values
-      val keyValues = randomIntKeyValues(keyValueCount)
+      val keyValues = randomKeyValues(keyValueCount)
       val group =
         Transient.Group(
           keyValues = keyValues,
@@ -132,7 +132,7 @@ class GroupSpec extends TestBase {
     }
 
     "return a new instance of uncompressed Memory.Group" in {
-      val keyValues = randomIntKeyValues(keyValueCount)
+      val keyValues = randomKeyValues(keyValueCount)
       val group =
         Transient.Group(
           keyValues = keyValues,

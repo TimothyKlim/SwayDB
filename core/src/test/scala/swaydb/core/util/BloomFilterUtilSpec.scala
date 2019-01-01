@@ -61,18 +61,18 @@ class BloomFilterUtilSpec extends TestBase {
     "not initialise bloomFilter if it contain removeRange" in {
       import swaydb.core.map.serializer.RangeValueSerializers._
       BloomFilterUtil.initBloomFilter(
-        keyValues = Slice(Transient.Range[Value.FromValue, Value.RangeValue](1, 2, None, Value.Remove(None))),
+        keyValues = Slice(Transient.Range[Value.FromValue, Value.RangeValue](1, 2, None, Value.Remove(None, randomNextTimeOption))),
         bloomFilterFalsePositiveRate = 0.1
       ) shouldBe empty
 
       BloomFilterUtil.initBloomFilter(
-        keyValues = Slice(Transient.Range[Value.FromValue, Value.RangeValue](1, 2, None, Value.Remove(Some(randomDeadline())))),
+        keyValues = Slice(Transient.Range[Value.FromValue, Value.RangeValue](1, 2, None, Value.Remove(Some(randomDeadline()), randomNextTimeOption))),
         bloomFilterFalsePositiveRate = 0.1
       ) shouldBe empty
 
       //fromValue is remove but it's not a remove ange
       BloomFilterUtil.initBloomFilter(
-        keyValues = Slice(Transient.Range[Value.FromValue, Value.RangeValue](1, 2, Some(Value.Remove(None)), Value.Update(100))),
+        keyValues = Slice(Transient.Range[Value.FromValue, Value.RangeValue](1, 2, Some(Value.Remove(None, randomNextTimeOption)), Value.Update(100))),
         bloomFilterFalsePositiveRate = 0.1
       ) shouldBe defined
     }

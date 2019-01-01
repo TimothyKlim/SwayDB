@@ -29,7 +29,7 @@ import swaydb.core.util.PipeOps._
 import swaydb.data.compaction.{LevelMeter, Throttle}
 import swaydb.data.slice.Slice
 import swaydb.data.util.StorageUnits._
-import swaydb.order.KeyOrder
+import swaydb.data.order.KeyOrder
 import swaydb.serializers.Default._
 import swaydb.serializers._
 import swaydb.core.map.serializer.RangeValueSerializers._
@@ -62,8 +62,8 @@ class LevelReadSpec3 extends LevelReadSpec {
 
 sealed trait LevelReadSpec extends TestBase with MockFactory with Benchmark {
 
-  override implicit val ordering: Ordering[Slice[Byte]] = KeyOrder.default
-  implicit override val groupingStrategy: Option[KeyValueGroupingStrategyInternal] = randomCompressionTypeOption(keyValuesCount)
+  override implicit val keyOrder: KeyOrder[Slice[Byte]] = KeyOrder.default
+  implicit override val groupingStrategy: Option[KeyValueGroupingStrategyInternal] = randomCompressionOption(keyValuesCount)
   val keyValuesCount = 100
 
   "Level.mightContain" should {
@@ -113,11 +113,11 @@ sealed trait LevelReadSpec extends TestBase with MockFactory with Benchmark {
 
   "Level.pickSegmentsToPush" should {
     "return segments in sequence when there is no lower level (These picks are for collapsing segments within the level)" in {
-      val segments = (1 to 10) map (index => TestSegment(Slice(Transient.Put(index, index))).assertGet)
+      val segments = (1 to 10) map (index => TestSegment(Slice(Transient.put(index, index))).assertGet)
 
       val level = TestLevel(segmentSize = 1.byte)
       level.put(segments).assertGet
-      level.putKeyValues(Slice(Memory.Put(1, 1))).assertGet
+      level.putKeyValues(Slice(Memory.put(1, 1))).assertGet
 
       level.pickSegmentsToPush(0) shouldBe empty
       level.pickSegmentsToPush(5) shouldHaveSameKeyValuesAs segments.take(5)
@@ -126,13 +126,13 @@ sealed trait LevelReadSpec extends TestBase with MockFactory with Benchmark {
     }
 
     "return segments in sequence when there are busy segments in lower level" in {
-      val segments = (1 to 10) map (index => TestSegment(Slice(Transient.Put(index, index))).assertGet)
+      val segments = (1 to 10) map (index => TestSegment(Slice(Transient.put(index, index))).assertGet)
       val nextLevel = mock[LevelRef]
       nextLevel.isTrash _ expects() returning false repeat 2.times
 
       val level = TestLevel(segmentSize = 1.byte, nextLevel = Some(nextLevel), throttle = (_) => Throttle(Duration.Zero, 0))
       level.put(segments).assertGet
-      level.putKeyValues(Slice(Memory.Put(1, 1))).assertGet
+      level.putKeyValues(Slice(Memory.put(1, 1))).assertGet
 
       level.pickSegmentsToPush(0) shouldBe empty
 

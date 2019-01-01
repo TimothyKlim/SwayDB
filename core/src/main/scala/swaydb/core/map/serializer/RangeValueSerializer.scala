@@ -39,8 +39,6 @@ sealed trait RangeValueSerializer[F, R] {
 
 object RangeValueSerializers {
 
-  import ValueSerializers.Levels._
-
   implicit object UnitRemoveSerializer extends RangeValueSerializer[Unit, Value.Remove] {
 
     val id = swaydb.core.map.serializer.RemoveRange.id

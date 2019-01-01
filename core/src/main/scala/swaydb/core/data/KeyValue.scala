@@ -19,31 +19,28 @@
 
 package swaydb.core.data
 
+import scala.concurrent.duration.{Deadline, FiniteDuration}
+import scala.util.{Success, Try}
 import swaydb.compression.CompressionInternal
-import swaydb.core.data.KeyValue.ReadOnly
-import swaydb.core.data.`lazy`.{LazyRangeValue, LazyValue}
 import swaydb.core.group.compression.data.GroupHeader
 import swaydb.core.group.compression.{GroupCompressor, GroupDecompressor, GroupKeyCompressor}
 import swaydb.core.io.reader.Reader
-import swaydb.core.map.serializer.RangeValueSerializer
+import swaydb.core.map.serializer.{RangeValueSerializer, ValueSerializer}
 import swaydb.core.queue.KeyValueLimiter
-import swaydb.core.segment.format.one.entry.writer._
+import swaydb.core.segment.format.a.entry.reader.lazyvalue._
+import swaydb.core.segment.format.a.entry.writer._
 import swaydb.core.segment.{SegmentCache, SegmentCacheInitializer}
+import swaydb.core.util.Bytes
 import swaydb.core.util.CollectionUtil._
-import swaydb.core.util.{Bytes, TryUtil}
+import swaydb.data.order.KeyOrder
 import swaydb.data.segment.MaxKey
 import swaydb.data.slice.{Reader, Slice}
-
-import scala.concurrent.duration.{Deadline, FiniteDuration}
-import scala.util.{Failure, Success, Try}
 
 private[core] sealed trait KeyValue {
   def key: Slice[Byte]
 
   def keyLength =
     key.size
-
-  def getOrFetchValue: Try[Option[Slice[Byte]]]
 
 }
 
@@ -54,7 +51,7 @@ private[core] object KeyValue {
     * and are stored in-memory after merge for Memory Segments.
     */
   sealed trait ReadOnly extends KeyValue {
-    def deadline: Option[Deadline]
+    def indexEntryDeadline: Option[Deadline]
   }
 
   /**
@@ -72,13 +69,20 @@ private[core] object KeyValue {
 
   object ReadOnly {
     /**
-      * A API response type expected from a [[swaydb.core.map.Map]] or [[swaydb.core.segment.Segment]].
+      * An API response type expected from a [[swaydb.core.map.Map]] or [[swaydb.core.segment.Segment]].
       *
       * Key-value types like [[Group]] are processed within [[swaydb.core.map.Map]] or [[swaydb.core.segment.Segment]].
       */
     sealed trait SegmentResponse extends KeyValue with ReadOnly
 
     sealed trait Fixed extends SegmentResponse {
+      def toValue(): Try[Value.FromValue]
+    }
+
+    sealed trait Put extends KeyValue.ReadOnly.Fixed {
+      def valueLength: Int
+
+      def deadline: Option[Deadline]
 
       def hasTimeLeft(): Boolean
 
@@ -87,65 +91,56 @@ private[core] object KeyValue {
 
       def hasTimeLeftAtLeast(minus: FiniteDuration): Boolean
 
-      def updateDeadline(deadline: Deadline): Fixed
+      def getOrFetchValue: Try[Option[Slice[Byte]]]
+
+      def time: Option[Time]
+
+      def toValue(): Try[Value.Put]
+
     }
 
-    implicit class ReadOnlyFixedImplicit(overwrite: KeyValue.ReadOnly.Fixed) {
-      def toFromValue: Try[Value.FromValue] =
-        overwrite match {
-          case _: Memory.Remove | _: Persistent.Remove =>
-            Success(Value.Remove(overwrite.deadline))
+    sealed trait Remove extends KeyValue.ReadOnly.Fixed {
+      def deadline: Option[Deadline]
 
-          case put: Memory.Put =>
-            Success(Value.Put(put.value, put.deadline))
+      def hasTimeLeft(): Boolean
 
-          case put: Persistent.Put =>
-            put.getOrFetchValue.map(Value.Put(_, put.deadline))
+      def isOverdue(): Boolean =
+        !hasTimeLeft()
 
-          case put: Memory.Update =>
-            Success(Value.Update(put.value, put.deadline))
+      def hasTimeLeftAtLeast(minus: FiniteDuration): Boolean
 
-          case update: Persistent.Update =>
-            update.getOrFetchValue.map(Value.Update(_, update.deadline))
-        }
+      def time: Option[Time]
 
-      def toRangeValue: Try[Value.RangeValue] =
-        overwrite match {
-          case _: Memory.Remove | _: Persistent.Remove =>
-            Success(Value.Remove(overwrite.deadline))
-
-          case put: Memory.Put =>
-            Success(Value.Update(put.value, put.deadline))
-
-          case put: Persistent.Put =>
-            put.getOrFetchValue.map(Value.Update(_, put.deadline))
-
-          case put: Memory.Update =>
-            Success(Value.Update(put.value, put.deadline))
-
-          case update: Persistent.Update =>
-            update.getOrFetchValue.map(Value.Update(_, update.deadline))
-        }
+      def toValue(): Try[Value.Remove]
     }
-
-    sealed trait Put extends KeyValue.ReadOnly.Fixed {
-      def valueLength: Int
-
-      def updateDeadline(deadline: Deadline): Put
-    }
-
-    sealed trait Remove extends KeyValue.ReadOnly.Fixed
 
     sealed trait Update extends KeyValue.ReadOnly.Fixed {
-      def toPut(): KeyValue.ReadOnly.Put
+      def deadline: Option[Deadline]
 
-      def toPut(deadline: Deadline): KeyValue.ReadOnly.Put
+      def hasTimeLeft(): Boolean
+
+      def isOverdue(): Boolean =
+        !hasTimeLeft()
+
+      def hasTimeLeftAtLeast(minus: FiniteDuration): Boolean
+
+      def time: Option[Time]
+
+      def getOrFetchValue: Try[Option[Slice[Byte]]]
+
+      def toValue(): Try[Value.Update]
+    }
+
+    sealed trait PendingApply extends KeyValue.ReadOnly.Fixed {
+      def getOrFetchApplies: Try[Slice[Value.Apply]]
+
+      def toValue(): Try[Value.PendingApply]
     }
 
     object Range {
       implicit class RangeImplicit(range: KeyValue.ReadOnly.Range) {
-        def contains(key: Slice[Byte])(implicit ordering: Ordering[Slice[Byte]]): Boolean = {
-          import ordering._
+        def contains(key: Slice[Byte])(implicit keyOrder: KeyOrder[Slice[Byte]]): Boolean = {
+          import keyOrder._
           key >= range.fromKey && key < range.toKey
         }
       }
@@ -162,7 +157,7 @@ private[core] object KeyValue {
 
       def fetchFromAndRangeValue: Try[(Option[Value.FromValue], Value.RangeValue)]
 
-      def fetchFromOrElseRangeValue: Try[Value] =
+      def fetchFromOrElseRangeValue: Try[Value.FromValue] =
         fetchFromAndRangeValue map {
           case (fromValue, rangeValue) =>
             fromValue getOrElse rangeValue
@@ -171,13 +166,13 @@ private[core] object KeyValue {
 
     object Group {
       implicit class GroupImplicit(group: KeyValue.ReadOnly.Group) {
-        def contains(key: Slice[Byte])(implicit ordering: Ordering[Slice[Byte]]): Boolean = {
-          import ordering._
+        def contains(key: Slice[Byte])(implicit keyOrder: KeyOrder[Slice[Byte]]): Boolean = {
+          import keyOrder._
           key >= group.minKey && ((group.maxKey.inclusive && key <= group.maxKey.maxKey) || (!group.maxKey.inclusive && key < group.maxKey.maxKey))
         }
 
-        def containsHigher(key: Slice[Byte])(implicit ordering: Ordering[Slice[Byte]]): Boolean = {
-          import ordering._
+        def containsHigher(key: Slice[Byte])(implicit keyOrder: KeyOrder[Slice[Byte]]): Boolean = {
+          import keyOrder._
           key >= group.minKey && key < group.maxKey.maxKey
         }
       }
@@ -190,8 +185,10 @@ private[core] object KeyValue {
 
       def header(): Try[GroupHeader]
 
-      def segmentCache(implicit ordering: Ordering[Slice[Byte]],
+      def segmentCache(implicit keyOrder: KeyOrder[Slice[Byte]],
                        keyValueLimiter: KeyValueLimiter): SegmentCache
+
+      def deadline: Option[Deadline]
     }
   }
 
@@ -206,6 +203,7 @@ private[core] object KeyValue {
     val isGroup: Boolean
     val hasRemove: Boolean
     val previous: Option[KeyValue.WriteOnly]
+    def fullKey: Slice[Byte]
     def stats: Stats
     def deadline: Option[Deadline]
     def indexEntryBytes: Slice[Byte]
@@ -327,162 +325,92 @@ private[swaydb] object Memory {
     def toFromValue: Value.FromValue =
       memory match {
         case put: Put =>
-          Value.Put(put.value, put.deadline)
-        case update: Update =>
-          Value.Update(update.value, update.deadline)
-        case remove: Remove =>
-          Value.Remove(remove.deadline)
+          Value.Put(put.value, put.deadline, put.time)
 
-      }
-
-    def toRangeValue: Value.RangeValue =
-      memory match {
-        case put: Put =>
-          Value.Update(put.value, put.deadline)
         case update: Update =>
-          Value.Update(update.value, update.deadline)
+          Value.Update(update.value, update.deadline, update.time)
+
         case remove: Remove =>
-          Value.Remove(remove.deadline)
+          Value.Remove(remove.deadline, remove.time)
+
+        case update: Memory.PendingApply =>
+          Value.PendingApply(update.applies)
+
       }
   }
 
   sealed trait Fixed extends Memory.SegmentResponse with KeyValue.ReadOnly.Fixed
 
-  object Put {
-    def apply(key: Slice[Byte],
-              value: Slice[Byte]): Put =
-      new Put(key, Some(value), None)
-
-    def apply(key: Slice[Byte],
-              value: Slice[Byte],
-              removeAt: Deadline): Put =
-      new Put(key, Some(value), Some(removeAt))
-
-    def apply(key: Slice[Byte],
-              value: Option[Slice[Byte]],
-              removeAt: Deadline): Put =
-      new Put(key, value, Some(removeAt))
-
-    def apply(key: Slice[Byte],
-              value: Slice[Byte],
-              removeAt: Option[Deadline]): Put =
-      new Put(key, Some(value), removeAt)
-
-    def apply(key: Slice[Byte],
-              value: Slice[Byte],
-              removeAfter: FiniteDuration): Put =
-      new Put(key, Some(value), Some(removeAfter.fromNow))
-
-    def apply(key: Slice[Byte],
-              value: Option[Slice[Byte]]): Put =
-      new Put(key, value, None)
-
-    def apply(key: Slice[Byte]): Put =
-      new Put(key, None, None)
-  }
-
   case class Put(key: Slice[Byte],
                  value: Option[Slice[Byte]],
-                 deadline: Option[Deadline]) extends Memory.Fixed with KeyValue.ReadOnly.Put {
+                 deadline: Option[Deadline],
+                 time: Option[Time]) extends Memory.Fixed with KeyValue.ReadOnly.Put {
 
-    override def getOrFetchValue: Try[Option[Slice[Byte]]] =
-      Success(value)
+    override def indexEntryDeadline: Option[Deadline] = deadline
 
     override def valueLength: Int =
       value.map(_.size).getOrElse(0)
 
-    override def updateDeadline(deadline: Deadline): Put =
-      copy(deadline = Some(deadline))
-
-    override def hasTimeLeft(): Boolean =
+    def hasTimeLeft(): Boolean =
       deadline.forall(_.hasTimeLeft())
 
-    override def hasTimeLeftAtLeast(minus: FiniteDuration): Boolean =
+    def hasTimeLeftAtLeast(minus: FiniteDuration): Boolean =
       deadline.forall(deadline => (deadline - minus).hasTimeLeft())
-
-  }
-
-  object Update {
-    def apply(key: Slice[Byte],
-              value: Slice[Byte]): Update =
-      new Update(key, Some(value), None)
-
-    def apply(key: Slice[Byte],
-              value: Slice[Byte],
-              removeAt: Deadline): Update =
-      new Update(key, Some(value), Some(removeAt))
-
-    def apply(key: Slice[Byte],
-              value: Slice[Byte],
-              removeAt: Option[Deadline]): Update =
-      new Update(key, Some(value), removeAt)
-
-    def apply(key: Slice[Byte],
-              value: Slice[Byte],
-              removeAfter: FiniteDuration): Update =
-      new Update(key, Some(value), Some(removeAfter.fromNow))
-
-    def apply(key: Slice[Byte],
-              value: Option[Slice[Byte]]): Update =
-      new Update(key, value, None)
-
-    def apply(key: Slice[Byte],
-              value: Option[Slice[Byte]],
-              deadline: Deadline): Update =
-      new Update(key, value, Some(deadline))
-
-    def apply(key: Slice[Byte]): Update =
-      new Update(key, None, None)
-  }
-
-  case class Update(key: Slice[Byte],
-                    value: Option[Slice[Byte]],
-                    deadline: Option[Deadline]) extends KeyValue.ReadOnly.Update with Memory.Fixed {
 
     override def getOrFetchValue: Try[Option[Slice[Byte]]] =
       Success(value)
 
-    override def hasTimeLeft(): Boolean =
+    override def toValue(): Try[Value.Put] =
+      Success(Value.Put(value, deadline, time))
+  }
+
+  case class Update(key: Slice[Byte],
+                    value: Option[Slice[Byte]],
+                    deadline: Option[Deadline],
+                    time: Option[Time]) extends KeyValue.ReadOnly.Update with Memory.Fixed {
+
+    override def indexEntryDeadline: Option[Deadline] = deadline
+
+    def hasTimeLeft(): Boolean =
       deadline.forall(_.hasTimeLeft())
 
-    override def updateDeadline(deadline: Deadline): Update =
-      copy(deadline = Some(deadline))
-
-    override def hasTimeLeftAtLeast(minus: FiniteDuration): Boolean =
+    def hasTimeLeftAtLeast(minus: FiniteDuration): Boolean =
       deadline.forall(deadline => (deadline - minus).hasTimeLeft())
 
-    override def toPut(): Memory.Put =
-      Memory.Put(key, value, deadline)
+    override def getOrFetchValue: Try[Option[Slice[Byte]]] =
+      Success(value)
 
-    override def toPut(deadline: Deadline): Memory.Put =
-      Memory.Put(key, value, deadline)
+    override def toValue(): Try[Value.Update] =
+      Success(Value.Update(value, deadline, time))
   }
 
-  object Remove {
-    def apply(key: Slice[Byte]): Remove =
-      new Remove(key, None)
+  case class PendingApply(key: Slice[Byte],
+                          applies: Slice[Value.Apply]) extends KeyValue.ReadOnly.PendingApply with Memory.Fixed {
 
-    def apply(key: Slice[Byte], deadline: Deadline): Remove =
-      new Remove(key, Some(deadline))
+    override def indexEntryDeadline: Option[Deadline] = None
 
-    def apply(key: Slice[Byte], deadline: FiniteDuration): Remove =
-      new Remove(key, Some(deadline.fromNow))
+    override def getOrFetchApplies: Try[Slice[Value.Apply]] =
+      Success(applies)
+
+    override def toValue(): Try[Value.PendingApply] =
+      Success(Value.PendingApply(applies))
   }
+
 
   case class Remove(key: Slice[Byte],
-                    deadline: Option[Deadline]) extends Memory.Fixed with KeyValue.ReadOnly.Remove {
+                    deadline: Option[Deadline],
+                    time: Option[Time]) extends Memory.Fixed with KeyValue.ReadOnly.Remove {
 
-    override def updateDeadline(deadline: Deadline): Remove =
-      copy(deadline = Some(deadline))
+    override def indexEntryDeadline: Option[Deadline] = deadline
 
-    override def getOrFetchValue: Try[Option[Slice[Byte]]] =
-      TryUtil.successNone
-
-    override def hasTimeLeft(): Boolean =
+    def hasTimeLeft(): Boolean =
       deadline.exists(_.hasTimeLeft())
 
-    override def hasTimeLeftAtLeast(atLeast: FiniteDuration): Boolean =
+    def hasTimeLeftAtLeast(atLeast: FiniteDuration): Boolean =
       deadline.exists(deadline => (deadline - atLeast).hasTimeLeft())
+
+    override def toValue(): Try[Value.Remove] =
+      Success(Value.Remove(deadline, time))
   }
 
   object Range {
@@ -498,9 +426,9 @@ private[swaydb] object Memory {
                    fromValue: Option[Value.FromValue],
                    rangeValue: Value.RangeValue) extends Memory.SegmentResponse with KeyValue.ReadOnly.Range {
 
-    override val deadline: Option[Deadline] = None
-
     override def key: Slice[Byte] = fromKey
+
+    override def indexEntryDeadline: Option[Deadline] = None
 
     override def fetchFromValue: Try[Option[Value.FromValue]] =
       Success(fromValue)
@@ -510,9 +438,6 @@ private[swaydb] object Memory {
 
     override def fetchFromAndRangeValue: Try[(Option[Value.FromValue], Value.RangeValue)] =
       Success(fromValue, rangeValue)
-
-    override def getOrFetchValue: Try[Option[Slice[Byte]]] =
-      Failure(new IllegalAccessError(s"${this.getClass.getSimpleName} do not store value."))
 
   }
 
@@ -547,15 +472,14 @@ private[swaydb] object Memory {
         createReader = groupDecompressor.reader
       )
 
-    override def key: Slice[Byte] = minKey
+    override def indexEntryDeadline: Option[Deadline] = deadline
 
-    override def getOrFetchValue: Try[Option[Slice[Byte]]] =
-      Failure(new IllegalAccessError(s"${this.getClass.getSimpleName} do not return values. Use group's segmentCache instead."))
+    override def key: Slice[Byte] = minKey
 
     def isValueDefined: Boolean =
       groupDecompressor.isIndexDecompressed()
 
-    def segmentCache(implicit ordering: Ordering[Slice[Byte]],
+    def segmentCache(implicit keyOrder: KeyOrder[Slice[Byte]],
                      keyValueLimiter: KeyValueLimiter): SegmentCache =
       segmentCacheInitializer.segmentCache
 
@@ -581,136 +505,89 @@ private[core] sealed trait Transient extends KeyValue.WriteOnly
 
 private[core] object Transient {
 
-  implicit class TransientImplicits(transient: Transient)(implicit ordering: Ordering[Slice[Byte]]) {
-    def toMemory: Try[Memory] =
+  implicit class TransientImplicits(transient: Transient)(implicit keyOrder: KeyOrder[Slice[Byte]]) {
+    def toMemory: Memory =
       transient match {
         case put: Transient.Put =>
-          put.getOrFetchValue map {
-            value =>
-              Memory.Put(put.key, value, put.deadline)
-          }
+          Memory.Put(put.key, put.value, put.deadline, put.time)
 
         case remove: Transient.Remove =>
-          Success(Memory.Remove(remove.key, remove.deadline))
+          Memory.Remove(remove.key, remove.deadline, remove.time)
 
         case update: Transient.Update =>
-          update.getOrFetchValue map {
-            value =>
-              Memory.Update(update.key, value, update.deadline)
-          }
+          Memory.Update(
+            key = update.key,
+            value = update.value,
+            deadline = update.deadline,
+            time = update.time
+          )
+
+        case update: Transient.PendingApply =>
+          Memory.PendingApply(
+            key = update.key,
+            applies = update.applies
+          )
 
         case range: Transient.Range =>
-          range.fetchFromAndRangeValue map {
-            case (fromValue, rangeValue) =>
-              Memory.Range(range.fromKey, range.toKey, fromValue, rangeValue)
-          }
+          Memory.Range(range.fromKey, range.toKey, range.fromValue, range.rangeValue)
 
         case group: Transient.Group =>
-          Try {
-            Memory.Group(
-              minKey = group.minKey,
-              maxKey = group.maxKey,
-              deadline = group.deadline,
-              compressedKeyValues = group.compressedKeyValues.unslice(),
-              groupStartOffset = 0
-            )
-          }
+          Memory.Group(
+            minKey = group.minKey,
+            maxKey = group.maxKey,
+            deadline = group.deadline,
+            compressedKeyValues = group.compressedKeyValues.unslice(),
+            groupStartOffset = 0
+          )
       }
 
-    def toMemoryResponse: Try[Memory.SegmentResponse] =
+    def toMemoryResponse: Memory.SegmentResponse =
       transient match {
         case put: Transient.Put =>
-          put.getOrFetchValue map {
-            value =>
-              Memory.Put(put.key, value, put.deadline)
-          }
+          Memory.Put(put.key, put.value, put.deadline, put.time)
 
         case remove: Transient.Remove =>
-          Success(Memory.Remove(remove.key, remove.deadline))
+          Memory.Remove(remove.key, remove.deadline, remove.time)
+
+        case apply: Transient.PendingApply =>
+          Memory.PendingApply(apply.key, apply.applies)
 
         case update: Transient.Update =>
-          update.getOrFetchValue map {
-            value =>
-              Memory.Update(update.key, value, update.deadline)
-          }
+          Memory.Update(
+            key = update.key,
+            value = update.value,
+            deadline = update.deadline,
+            time = update.time
+          )
 
         case range: Transient.Range =>
-          range.fetchFromAndRangeValue map {
-            case (fromValue, rangeValue) =>
-              Memory.Range(range.fromKey, range.toKey, fromValue, rangeValue)
-          }
+          Memory.Range(range.fromKey, range.toKey, range.fromValue, range.rangeValue)
 
         case _: Transient.Group =>
           //todo make this type-safe instead.
-          Failure(new Exception("toMemoryResponse invoked on a Group"))
+          throw new Exception("toMemoryResponse invoked on a Group")
       }
-  }
-
-  object Remove {
-
-    def apply(key: Slice[Byte]): Remove =
-      new Remove(
-        key = key,
-        falsePositiveRate = 0.1,
-        previous = None,
-        deadline = None
-      )
-
-    def apply(key: Slice[Byte],
-              removeAfter: FiniteDuration,
-              falsePositiveRate: Double): Remove =
-      new Remove(
-        key = key,
-        falsePositiveRate = falsePositiveRate,
-        previous = None,
-        deadline = Some(removeAfter.fromNow)
-      )
-
-    def apply(key: Slice[Byte],
-              falsePositiveRate: Double): Remove =
-      new Remove(
-        key = key,
-        falsePositiveRate = falsePositiveRate,
-        previous = None,
-        deadline = None
-      )
-
-    def apply(key: Slice[Byte],
-              falsePositiveRate: Double,
-              previous: Option[KeyValue.WriteOnly]): Remove =
-      new Remove(
-        key = key,
-        falsePositiveRate = falsePositiveRate,
-        previous = previous,
-        deadline = None
-      )
-
-    def apply(key: Slice[Byte],
-              falsePositiveRate: Double,
-              previous: Option[KeyValue.WriteOnly],
-              deadline: Option[Deadline]): Remove =
-      new Remove(
-        key = key,
-        deadline = deadline,
-        previous = previous,
-        falsePositiveRate = falsePositiveRate
-      )
   }
 
   case class Remove(key: Slice[Byte],
                     deadline: Option[Deadline],
+                    time: Option[Time],
                     previous: Option[KeyValue.WriteOnly],
                     falsePositiveRate: Double) extends Transient with KeyValue.WriteOnly.Fixed {
     override val hasRemove: Boolean = true
     override val isRange: Boolean = false
     override val isGroup: Boolean = false
     override val isRemoveRange = false
-    override val getOrFetchValue: Try[Option[Slice[Byte]]] = TryUtil.successNone
-    override val valueEntryBytes: Some[Slice[Byte]] = Some(Slice.emptyBytes)
     override val value: Option[Slice[Byte]] = None
-    override val currentStartValueOffsetPosition: Int = previous.map(_.currentStartValueOffsetPosition).getOrElse(0)
-    override val currentEndValueOffsetPosition: Int = previous.map(_.currentEndValueOffsetPosition).getOrElse(0)
-    override val indexEntryBytes: Slice[Byte] = RemoveEntryWriter.write(keyValue = this)
+    override val (indexEntryBytes, valueEntryBytes, currentStartValueOffsetPosition, currentEndValueOffsetPosition) =
+      EntryWriter.write(
+        current = this,
+        currentTime = time,
+        compressDuplicateValues = false
+      )
+
+    override def fullKey = key
+
     override val hasValueEntryBytes: Boolean = previous.exists(_.hasValueEntryBytes) || valueEntryBytes.exists(_.nonEmpty)
     override val stats =
       Stats(
@@ -734,157 +611,10 @@ private[core] object Transient {
 
   }
 
-  object Put {
-
-    def apply(key: Slice[Byte],
-              value: Option[Slice[Byte]],
-              falsePositiveRate: Double,
-              previousMayBe: Option[KeyValue.WriteOnly]): Put =
-      new Put(
-        key = key,
-        value = value,
-        deadline = None,
-        previous = previousMayBe,
-        falsePositiveRate = falsePositiveRate,
-        compressDuplicateValues = true
-      )
-
-    def apply(key: Slice[Byte],
-              value: Option[Slice[Byte]],
-              falsePositiveRate: Double,
-              previousMayBe: Option[KeyValue.WriteOnly],
-              deadline: Option[Deadline],
-              compressDuplicateValues: Boolean): Put =
-      new Put(
-        key = key,
-        value = value,
-        deadline = deadline,
-        previous = previousMayBe,
-        falsePositiveRate = falsePositiveRate,
-        compressDuplicateValues = compressDuplicateValues
-      )
-
-    def apply(key: Slice[Byte]): Put =
-      new Put(
-        key = key,
-        value = None,
-        deadline = None,
-        previous = None,
-        falsePositiveRate = 0.1,
-        compressDuplicateValues = true
-      )
-
-    def apply(key: Slice[Byte],
-              value: Slice[Byte]): Put =
-      new Put(
-        key = key,
-        value = Some(value),
-        deadline = None,
-        previous = None,
-        falsePositiveRate = 0.1,
-        compressDuplicateValues = true
-      )
-
-    def apply(key: Slice[Byte],
-              value: Slice[Byte],
-              removeAfter: FiniteDuration): Put =
-      new Put(
-        key = key,
-        value = Some(value),
-        deadline = Some(removeAfter.fromNow),
-        previous = None,
-        falsePositiveRate = 0.1,
-        compressDuplicateValues = true
-      )
-
-    def apply(key: Slice[Byte],
-              value: Slice[Byte],
-              deadline: Deadline): Put =
-      new Put(
-        key = key,
-        value = Some(value),
-        deadline = Some(deadline),
-        previous = None,
-        falsePositiveRate = 0.1,
-        compressDuplicateValues = true
-      )
-
-    def apply(key: Slice[Byte],
-              removeAfter: FiniteDuration): Put =
-      new Put(
-        key = key,
-        value = None,
-        deadline = Some(removeAfter.fromNow),
-        previous = None,
-        falsePositiveRate = 0.1,
-        compressDuplicateValues = true
-      )
-
-    def apply(key: Slice[Byte],
-              value: Slice[Byte],
-              removeAfter: Option[FiniteDuration]): Put =
-      new Put(
-        key = key,
-        value = Some(value),
-        deadline = removeAfter.map(_.fromNow),
-        previous = None,
-        falsePositiveRate = 0.1,
-        compressDuplicateValues = true
-      )
-
-    def apply(key: Slice[Byte],
-              value: Slice[Byte],
-              falsePositiveRate: Double): Put =
-      new Put(
-        key = key,
-        value = Some(value),
-        deadline = None,
-        previous = None,
-        falsePositiveRate = falsePositiveRate,
-        compressDuplicateValues = true
-      )
-
-    def apply(key: Slice[Byte],
-              falsePositiveRate: Double,
-              previous: Option[KeyValue.WriteOnly]): Put =
-      Put(
-        key = key,
-        value = None,
-        falsePositiveRate = falsePositiveRate,
-        previousMayBe = previous
-      )
-
-    def apply(key: Slice[Byte],
-              previous: Option[KeyValue.WriteOnly],
-              deadline: Option[Deadline],
-              compressDuplicateValues: Boolean): Put =
-      new Put(
-        key = key,
-        value = None,
-        deadline = deadline,
-        previous = previous,
-        falsePositiveRate = 0.1,
-        compressDuplicateValues = compressDuplicateValues
-      )
-
-    def apply(key: Slice[Byte],
-              value: Slice[Byte],
-              falsePositiveRate: Double,
-              previous: Option[KeyValue.WriteOnly],
-              compressDuplicateValues: Boolean): Put =
-      new Put(
-        key = key,
-        value = Some(value),
-        deadline = None,
-        previous = previous,
-        falsePositiveRate = falsePositiveRate,
-        compressDuplicateValues = compressDuplicateValues
-      )
-  }
-
   case class Put(key: Slice[Byte],
                  value: Option[Slice[Byte]],
                  deadline: Option[Deadline],
+                 time: Option[Time],
                  previous: Option[KeyValue.WriteOnly],
                  falsePositiveRate: Double,
                  compressDuplicateValues: Boolean) extends Transient with KeyValue.WriteOnly.Fixed {
@@ -894,8 +624,12 @@ private[core] object Transient {
     override val isGroup: Boolean = false
     override val isRange: Boolean = false
 
-    val (indexEntryBytes, valueEntryBytes, currentStartValueOffsetPosition, currentEndValueOffsetPosition): (Slice[Byte], Option[Slice[Byte]], Int, Int) =
-      PutEntryWriter.write(current = this, compressDuplicateValues = compressDuplicateValues)
+    val (indexEntryBytes, valueEntryBytes, currentStartValueOffsetPosition, currentEndValueOffsetPosition) =
+      EntryWriter.write(
+        current = this,
+        currentTime = time,
+        compressDuplicateValues = compressDuplicateValues
+      )
 
     override val hasValueEntryBytes: Boolean =
       previous.exists(_.hasValueEntryBytes) || valueEntryBytes.exists(_.nonEmpty)
@@ -913,168 +647,20 @@ private[core] object Transient {
         deadline = deadline
       )
 
+    override def fullKey = key
+
     override def updateStats(falsePositiveRate: Double, previous: Option[KeyValue.WriteOnly]): KeyValue.WriteOnly =
       this.copy(falsePositiveRate = falsePositiveRate, previous = previous)
-
-    override def getOrFetchValue: Try[Option[Slice[Byte]]] =
-      Success(value)
 
     override def hasTimeLeft(): Boolean =
       deadline.forall(_.hasTimeLeft())
 
   }
 
-  object Update {
-
-    def apply(key: Slice[Byte],
-              value: Option[Slice[Byte]],
-              falsePositiveRate: Double,
-              previousMayBe: Option[KeyValue.WriteOnly]): Update =
-      new Update(
-        key = key,
-        value = value,
-        deadline = None,
-        previous = previousMayBe,
-        falsePositiveRate = falsePositiveRate,
-        compressDuplicateValues = true
-      )
-
-    def apply(key: Slice[Byte],
-              value: Option[Slice[Byte]],
-              falsePositiveRate: Double,
-              previousMayBe: Option[KeyValue.WriteOnly],
-              deadline: Option[Deadline],
-              compressDuplicateValues: Boolean): Update =
-      new Update(
-        key = key,
-        value = value,
-        deadline = deadline,
-        previous = previousMayBe,
-        falsePositiveRate = falsePositiveRate,
-        compressDuplicateValues = compressDuplicateValues
-      )
-
-    def apply(key: Slice[Byte]): Update =
-      new Update(
-        key = key,
-        value = None,
-        deadline = None,
-        previous = None,
-        falsePositiveRate = 0.1,
-        compressDuplicateValues = true
-      )
-
-    def apply(key: Slice[Byte],
-              value: Slice[Byte]): Update =
-      new Update(
-        key = key,
-        value = Some(value),
-        deadline = None,
-        previous = None,
-        falsePositiveRate = 0.1,
-        compressDuplicateValues = true
-      )
-
-    def apply(key: Slice[Byte],
-              value: Slice[Byte],
-              removeAfter: FiniteDuration): Update =
-      new Update(
-        key = key,
-        value = Some(value),
-        deadline = Some(removeAfter.fromNow),
-        previous = None,
-        falsePositiveRate = 0.1,
-        compressDuplicateValues = true
-      )
-
-    def apply(key: Slice[Byte],
-              value: Slice[Byte],
-              deadline: Deadline): Update =
-      new Update(
-        key = key,
-        value = Some(value),
-        deadline = Some(deadline),
-        previous = None,
-        falsePositiveRate = 0.1,
-        compressDuplicateValues = true
-      )
-
-    def apply(key: Slice[Byte],
-              removeAfter: FiniteDuration): Update =
-      new Update(
-        key = key,
-        value = None,
-        deadline = Some(removeAfter.fromNow),
-        previous = None,
-        falsePositiveRate = 0.1,
-        compressDuplicateValues = true
-      )
-
-    def apply(key: Slice[Byte],
-              value: Slice[Byte],
-              removeAfter: Option[FiniteDuration]): Update =
-      new Update(
-        key = key,
-        value = Some(value),
-        deadline = removeAfter.map(_.fromNow),
-        previous = None,
-        falsePositiveRate = 0.1,
-        compressDuplicateValues = true
-      )
-
-    def apply(key: Slice[Byte],
-              value: Slice[Byte],
-              falsePositiveRate: Double): Update =
-      new Update(
-        key = key,
-        value = Some(value),
-        deadline = None,
-        previous = None,
-        falsePositiveRate = falsePositiveRate,
-        compressDuplicateValues = true
-      )
-
-    def apply(key: Slice[Byte],
-              falsePositiveRate: Double,
-              previous: Option[KeyValue.WriteOnly]): Update =
-      Update(
-        key = key,
-        value = None,
-        falsePositiveRate = falsePositiveRate,
-        previousMayBe = previous
-      )
-
-    def apply(key: Slice[Byte],
-              previous: Option[KeyValue.WriteOnly],
-              deadline: Option[Deadline],
-              compressDuplicateValues: Boolean): Update =
-      new Update(
-        key = key,
-        value = None,
-        deadline = deadline,
-        previous = previous,
-        falsePositiveRate = 0.1,
-        compressDuplicateValues = compressDuplicateValues
-      )
-
-    def apply(key: Slice[Byte],
-              value: Slice[Byte],
-              falsePositiveRate: Double,
-              previous: Option[KeyValue.WriteOnly],
-              compressDuplicateValues: Boolean): Update =
-      new Update(
-        key = key,
-        value = Some(value),
-        deadline = None,
-        previous = previous,
-        falsePositiveRate = falsePositiveRate,
-        compressDuplicateValues = compressDuplicateValues
-      )
-  }
-
   case class Update(key: Slice[Byte],
                     value: Option[Slice[Byte]],
                     deadline: Option[Deadline],
+                    time: Option[Time],
                     previous: Option[KeyValue.WriteOnly],
                     falsePositiveRate: Double,
                     compressDuplicateValues: Boolean) extends Transient with KeyValue.WriteOnly.Fixed {
@@ -1083,8 +669,12 @@ private[core] object Transient {
     override val isGroup: Boolean = false
     override val isRange: Boolean = false
 
-    val (indexEntryBytes, valueEntryBytes, currentStartValueOffsetPosition, currentEndValueOffsetPosition): (Slice[Byte], Option[Slice[Byte]], Int, Int) =
-      UpdateEntryWriter.write(current = this, compressDuplicateValues = compressDuplicateValues)
+    val (indexEntryBytes, valueEntryBytes, currentStartValueOffsetPosition, currentEndValueOffsetPosition) =
+      EntryWriter.write(
+        current = this,
+        currentTime = time,
+        compressDuplicateValues = compressDuplicateValues
+      )
     override val hasValueEntryBytes: Boolean = previous.exists(_.hasValueEntryBytes) || valueEntryBytes.exists(_.nonEmpty)
 
     val stats =
@@ -1100,15 +690,78 @@ private[core] object Transient {
         deadline = deadline
       )
 
+    override def fullKey = key
+
     override def updateStats(falsePositiveRate: Double, previous: Option[KeyValue.WriteOnly]): Transient.Update =
       this.copy(falsePositiveRate = falsePositiveRate, previous = previous)
-
-    override def getOrFetchValue: Try[Option[Slice[Byte]]] =
-      Success(value)
 
     override def hasTimeLeft(): Boolean =
       deadline.forall(_.hasTimeLeft())
 
+  }
+
+  object PendingApply {
+    def apply(key: Slice[Byte],
+              applies: Slice[Value.Apply],
+              previous: Option[KeyValue.WriteOnly],
+              falsePositiveRate: Double,
+              compressDuplicateValues: Boolean): PendingApply = {
+      val bytesRequired = ValueSerializer.bytesRequired(applies)
+      val bytes = Slice.create[Byte](bytesRequired)
+      ValueSerializer.write(applies)(bytes)
+
+      new PendingApply(
+        key = key,
+        applies = applies,
+        value = Some(bytes),
+        previous = previous,
+        falsePositiveRate = falsePositiveRate,
+        compressDuplicateValues = compressDuplicateValues
+      )
+    }
+  }
+
+  case class PendingApply(key: Slice[Byte],
+                          applies: Slice[Value.Apply],
+                          value: Option[Slice[Byte]],
+                          previous: Option[KeyValue.WriteOnly],
+                          falsePositiveRate: Double,
+                          compressDuplicateValues: Boolean) extends Transient with KeyValue.WriteOnly.Fixed {
+    override val hasRemove: Boolean = previous.exists(_.hasRemove)
+    override val isRemoveRange = false
+    override val isGroup: Boolean = false
+    override val isRange: Boolean = false
+
+    val (indexEntryBytes, valueEntryBytes, currentStartValueOffsetPosition, currentEndValueOffsetPosition) =
+      EntryWriter.write(
+        current = this,
+        currentTime = None,
+        compressDuplicateValues = compressDuplicateValues
+      )
+    override val hasValueEntryBytes: Boolean = previous.exists(_.hasValueEntryBytes) || valueEntryBytes.exists(_.nonEmpty)
+
+    val stats =
+      Stats(
+        key = indexEntryBytes,
+        value = valueEntryBytes,
+        falsePositiveRate = falsePositiveRate,
+        isRemoveRange = isRemoveRange,
+        isRange = isRange,
+        isGroup = isGroup,
+        bloomFiltersItemCount = 1,
+        previous = previous,
+        deadline = deadline
+      )
+
+    override def fullKey = key
+
+    override def updateStats(falsePositiveRate: Double, previous: Option[KeyValue.WriteOnly]): Transient.PendingApply =
+      this.copy(falsePositiveRate = falsePositiveRate, previous = previous)
+
+    override def hasTimeLeft(): Boolean =
+      true
+
+    override def deadline: Option[Deadline] = None
   }
 
   object Range {
@@ -1187,12 +840,14 @@ private[core] object Transient {
     override val isGroup: Boolean = false
     override val deadline: Option[Deadline] = None
 
-    val (indexEntryBytes, valueEntryBytes, currentStartValueOffsetPosition, currentEndValueOffsetPosition): (Slice[Byte], Option[Slice[Byte]], Int, Int) =
-      RangeEntryWriter.write(
+    val (indexEntryBytes, valueEntryBytes, currentStartValueOffsetPosition, currentEndValueOffsetPosition) =
+      EntryWriter.write(
         current = this,
+        currentTime = None,
         //It's highly likely that two sequential key-values within the same range have the same value after the range split occurs. So this is always set to true.
         compressDuplicateValues = true
       )
+
     override val hasValueEntryBytes: Boolean = previous.exists(_.hasValueEntryBytes) || valueEntryBytes.exists(_.nonEmpty)
 
     val stats =
@@ -1210,9 +865,6 @@ private[core] object Transient {
 
     override def updateStats(falsePositiveRate: Double, previous: Option[KeyValue.WriteOnly]): Transient.Range =
       this.copy(falsePositiveRate = falsePositiveRate, previous = previous)
-
-    override def getOrFetchValue: Try[Option[Slice[Byte]]] =
-      Success(value)
 
     override def fetchFromValue: Try[Option[Value.FromValue]] =
       Success(fromValue)
@@ -1270,10 +922,12 @@ private[core] object Transient {
     override val isRange: Boolean = keyValues.last.stats.hasRange
     override val isGroup: Boolean = true
     override val value: Option[Slice[Byte]] = Some(compressedKeyValues)
-    val (indexEntryBytes, valueEntryBytes, currentStartValueOffsetPosition, currentEndValueOffsetPosition): (Slice[Byte], Option[Slice[Byte]], Int, Int) =
-      GroupEntryWriter.write(
+    val (indexEntryBytes, valueEntryBytes, currentStartValueOffsetPosition, currentEndValueOffsetPosition) =
+      EntryWriter.write(
         current = this,
-        //it's highly unlikely that 2 groups after compression will have duplicate values. compressDuplicateValues check is unnecessary.
+        currentTime = None,
+        //it's highly unlikely that 2 groups after compression will have duplicate values.
+        //compressDuplicateValues check is unnecessary since the value bytes of a group can be large.
         compressDuplicateValues = false
       )
     override val hasValueEntryBytes: Boolean = previous.exists(_.hasValueEntryBytes) || valueEntryBytes.exists(_.nonEmpty)
@@ -1293,9 +947,6 @@ private[core] object Transient {
 
     override def updateStats(falsePositiveRate: Double, previous: Option[KeyValue.WriteOnly]): Transient.Group =
       this.copy(falsePositiveRate = falsePositiveRate, previous = previous)
-
-    override def getOrFetchValue: Try[Option[Slice[Byte]]] =
-      Success(Some(compressedKeyValues))
   }
 }
 
@@ -1309,8 +960,6 @@ private[core] sealed trait Persistent extends KeyValue.ReadOnly with KeyValue.Ca
 
   def isValueDefined: Boolean
 
-  def getOrFetchValue: Try[Option[Slice[Byte]]]
-
   def valueLength: Int
 
   def valueOffset: Int
@@ -1319,218 +968,205 @@ private[core] sealed trait Persistent extends KeyValue.ReadOnly with KeyValue.Ca
     * This function is NOT thread-safe and is mutable. It should always be invoke at the time of creation
     * and before inserting into the Segment's cache.
     */
-  def unsliceKey: Unit
+  def unsliceIndexBytes: Unit
 }
 
 private[core] object Persistent {
 
-  implicit class PersistentResponseImplicits(persistent: Persistent.SegmentResponse) {
+  sealed trait SegmentResponse extends KeyValue.ReadOnly.SegmentResponse with Persistent {
+    def toMemory(): Try[Memory.SegmentResponse]
+
     def toMemoryResponseOption(): Try[Option[Memory.SegmentResponse]] =
-      toMemoryResponse() map (Some(_))
+      toMemory() map (Some(_))
 
-    def toMemoryResponse(): Try[Memory.SegmentResponse] =
-      persistent match {
-        case fixed: Persistent.Fixed =>
-          fixed match {
-            case remove: Persistent.Remove =>
-              Try {
-                Memory.Remove(
-                  key = remove.key,
-                  deadline = remove.deadline
-                )
-              }
-            case put: Persistent.Put =>
-              put.getOrFetchValue map {
-                value =>
-                  Memory.Put(
-                    key = put.key,
-                    value = value,
-                    deadline = put.deadline
-                  )
-              }
-
-            case update: Persistent.Update =>
-              update.getOrFetchValue map {
-                value =>
-                  Memory.Update(
-                    key = update.key,
-                    value = value,
-                    deadline = update.deadline
-                  )
-              }
-          }
-        case range: Persistent.Range =>
-          range.fetchFromAndRangeValue map {
-            case (fromValue, rangeValue) =>
-              Memory.Range(
-                fromKey = range.fromKey,
-                toKey = range.toKey,
-                fromValue = fromValue,
-                rangeValue = rangeValue
-              )
-          }
-      }
   }
-
-  sealed trait SegmentResponse extends KeyValue.ReadOnly.SegmentResponse with Persistent
-
   sealed trait Fixed extends Persistent.SegmentResponse with KeyValue.ReadOnly.Fixed
-
-  object Remove {
-    def apply(indexOffset: Int)(key: Slice[Byte],
-                                nextIndexOffset: Int,
-                                nextIndexSize: Int,
-                                deadline: Option[Deadline]): Remove =
-      Remove(
-        _key = key,
-        deadline = deadline,
-        indexOffset = indexOffset,
-        nextIndexOffset = nextIndexOffset,
-        nextIndexSize = nextIndexSize
-      )
-  }
 
   case class Remove(private var _key: Slice[Byte],
                     deadline: Option[Deadline],
+                    private var _time: Option[Time],
                     indexOffset: Int,
                     nextIndexOffset: Int,
                     nextIndexSize: Int) extends Persistent.Fixed with KeyValue.ReadOnly.Remove {
     override val valueLength: Int = 0
     override val isValueDefined: Boolean = true
-    override val getOrFetchValue: Try[Option[Slice[Byte]]] = TryUtil.successNone
 
     def key = _key
 
-    override def unsliceKey(): Unit =
+    def time = _time
+
+    override def indexEntryDeadline: Option[Deadline] = deadline
+
+    override def unsliceIndexBytes(): Unit = {
       _key = _key.unslice()
+      _time = _time.unslice()
+    }
 
-    override def updateDeadline(deadline: Deadline): Remove =
-      copy(deadline = Some(deadline))
-
-    override def hasTimeLeft(): Boolean =
+    def hasTimeLeft(): Boolean =
       deadline.exists(_.hasTimeLeft())
 
-    override def hasTimeLeftAtLeast(minus: FiniteDuration): Boolean =
+    def hasTimeLeftAtLeast(minus: FiniteDuration): Boolean =
       deadline.exists(deadline => (deadline - minus).hasTimeLeft())
 
     override val valueOffset: Int = 0
-  }
 
-  object Put {
-    def apply(valueReader: Reader,
-              indexOffset: Int)(key: Slice[Byte],
-                                valueLength: Int,
-                                valueOffset: Int,
-                                nextIndexOffset: Int,
-                                nextIndexSize: Int,
-                                deadline: Option[Deadline]): Put =
-      Put(
-        _key = key,
-        deadline = deadline,
-        valueReader = valueReader,
-        nextIndexOffset = nextIndexOffset,
-        nextIndexSize = nextIndexSize,
-        indexOffset = indexOffset,
-        valueOffset = valueOffset,
-        valueLength = valueLength
-      )
+    override def toValue(): Try[Value.Remove] =
+      Success(Value.Remove(deadline, time))
+
+    override def toMemory(): Try[Memory.Remove] =
+      Success {
+        Memory.Remove(
+          key = key,
+          deadline = deadline,
+          time = time
+        )
+      }
   }
 
   case class Put(private var _key: Slice[Byte],
                  deadline: Option[Deadline],
-                 valueReader: Reader,
+                 private val lazyValueReader: LazyValueReader,
+                 private var _time: Option[Time],
                  nextIndexOffset: Int,
                  nextIndexSize: Int,
                  indexOffset: Int,
                  valueOffset: Int,
-                 valueLength: Int) extends Persistent.Fixed with LazyValue with KeyValue.ReadOnly.Put {
-    override def unsliceKey: Unit =
+                 valueLength: Int) extends Persistent.Fixed with KeyValue.ReadOnly.Put {
+    override def unsliceIndexBytes: Unit = {
       _key = _key.unslice()
+      _time = _time.unslice()
+    }
 
     override def key: Slice[Byte] =
       _key
 
-    override def updateDeadline(deadline: Deadline): Put =
-      copy(deadline = Some(deadline))
+    override def time: Option[Time] =
+      _time
 
-    override def hasTimeLeft(): Boolean =
+    override def indexEntryDeadline: Option[Deadline] = deadline
+
+    def hasTimeLeft(): Boolean =
       deadline.forall(_.hasTimeLeft())
 
-    override def hasTimeLeftAtLeast(minus: FiniteDuration): Boolean =
+    def hasTimeLeftAtLeast(minus: FiniteDuration): Boolean =
       deadline.forall(deadline => (deadline - minus).hasTimeLeft())
-  }
 
-  object Update {
-    def apply(valueReader: Reader,
-              indexOffset: Int)(key: Slice[Byte],
-                                valueLength: Int,
-                                valueOffset: Int,
-                                nextIndexOffset: Int,
-                                nextIndexSize: Int,
-                                deadline: Option[Deadline]): Update =
-      Update(
-        _key = key,
-        deadline = deadline,
-        valueReader = valueReader,
-        nextIndexOffset = nextIndexOffset,
-        nextIndexSize = nextIndexSize,
-        indexOffset = indexOffset,
-        valueOffset = valueOffset,
-        valueLength = valueLength
-      )
+    override def getOrFetchValue: Try[Option[Slice[Byte]]] =
+      lazyValueReader.getOrFetchValue
+
+    override def isValueDefined: Boolean =
+      lazyValueReader.isValueDefined
+
+    override def toValue(): Try[Value.Put] =
+      getOrFetchValue map {
+        value =>
+          Value.Put(value, deadline, time)
+      }
+
+    override def toMemory(): Try[Memory.Put] =
+      getOrFetchValue map {
+        value =>
+          Memory.Put(
+            key = key,
+            value = value,
+            deadline = deadline,
+            time = time
+          )
+      }
   }
 
   case class Update(private var _key: Slice[Byte],
                     deadline: Option[Deadline],
-                    valueReader: Reader,
+                    private val lazyValueReader: LazyValueReader,
+                    private var _time: Option[Time],
                     nextIndexOffset: Int,
                     nextIndexSize: Int,
                     indexOffset: Int,
                     valueOffset: Int,
-                    valueLength: Int) extends Persistent.Fixed with LazyValue with KeyValue.ReadOnly.Update {
-    override def unsliceKey: Unit =
+                    valueLength: Int) extends Persistent.Fixed with KeyValue.ReadOnly.Update {
+    override def unsliceIndexBytes: Unit = {
+      _key = _key.unslice()
+      _time = _time.unslice()
+    }
+
+    override def key: Slice[Byte] =
+      _key
+
+    override def time: Option[Time] =
+      _time
+
+    override def indexEntryDeadline: Option[Deadline] = deadline
+
+    def hasTimeLeft(): Boolean =
+      deadline.forall(_.hasTimeLeft())
+
+    def hasTimeLeftAtLeast(minus: FiniteDuration): Boolean =
+      deadline.forall(deadline => (deadline - minus).hasTimeLeft())
+
+    override def isValueDefined: Boolean =
+      lazyValueReader.isValueDefined
+
+    def getOrFetchValue: Try[Option[Slice[Byte]]] =
+      lazyValueReader.getOrFetchValue
+
+    override def toValue(): Try[Value.Update] =
+      getOrFetchValue map {
+        value =>
+          Value.Update(value, deadline, time)
+      }
+
+    override def toMemory(): Try[Memory.Update] =
+      getOrFetchValue map {
+        value =>
+          Memory.Update(
+            key = key,
+            value = value,
+            deadline = deadline,
+            time = time
+          )
+      }
+  }
+
+  case class PendingApply(private var _key: Slice[Byte],
+                          private val lazyValueReader: LazyApplyValueReader,
+                          nextIndexOffset: Int,
+                          nextIndexSize: Int,
+                          indexOffset: Int,
+                          valueOffset: Int,
+                          valueLength: Int) extends Persistent.Fixed with KeyValue.ReadOnly.PendingApply {
+    override def unsliceIndexBytes: Unit =
       _key = _key.unslice()
 
     override def key: Slice[Byte] =
       _key
 
-    override def hasTimeLeft(): Boolean =
-      deadline.forall(_.hasTimeLeft())
+    override def indexEntryDeadline: Option[Deadline] = None
 
-    override def updateDeadline(deadline: Deadline): Update =
-      copy(deadline = Some(deadline))
+    override def isValueDefined: Boolean =
+      lazyValueReader.isValueDefined
 
-    override def hasTimeLeftAtLeast(minus: FiniteDuration): Boolean =
-      deadline.forall(deadline => (deadline - minus).hasTimeLeft())
+    override def getOrFetchApplies: Try[Slice[Value.Apply]] =
+      lazyValueReader.getOrFetchApplies
 
-    override def toPut(): Persistent.Put =
-      Persistent.Put(
-        _key = key,
-        deadline = deadline,
-        valueReader = valueReader,
-        nextIndexOffset = nextIndexOffset,
-        nextIndexSize = nextIndexSize,
-        indexOffset = indexOffset,
-        valueOffset = valueOffset,
-        valueLength = valueLength
-      )
+    override def toValue(): Try[Value.PendingApply] =
+      lazyValueReader.getOrFetchApplies map {
+        applies =>
+          Value.PendingApply(applies)
+      }
 
-    override def toPut(deadline: Deadline): Persistent.Put =
-      Persistent.Put(
-        _key = key,
-        deadline = Some(deadline),
-        valueReader = valueReader,
-        nextIndexOffset = nextIndexOffset,
-        nextIndexSize = nextIndexSize,
-        indexOffset = indexOffset,
-        valueOffset = valueOffset,
-        valueLength = valueLength
-      )
+    override def toMemory(): Try[Memory.PendingApply] =
+      getOrFetchApplies map {
+        applies =>
+          Memory.PendingApply(
+            key = key,
+            applies = applies
+          )
+      }
   }
 
   object Range {
     def apply(key: Slice[Byte],
-              valueReader: Reader,
+              lazyRangeValueReader: LazyRangeValueReader,
               nextIndexOffset: Int,
               nextIndexSize: Int,
               indexOffset: Int,
@@ -1541,7 +1177,7 @@ private[core] object Persistent {
           Range(
             _fromKey = fromKey,
             _toKey = toKey,
-            valueReader = valueReader,
+            lazyRangeValueReader = lazyRangeValueReader,
             nextIndexOffset = nextIndexOffset,
             nextIndexSize = nextIndexSize,
             indexOffset = indexOffset,
@@ -1553,18 +1189,20 @@ private[core] object Persistent {
 
   case class Range(private var _fromKey: Slice[Byte],
                    private var _toKey: Slice[Byte],
-                   valueReader: Reader,
+                   private val lazyRangeValueReader: LazyRangeValueReader,
                    nextIndexOffset: Int,
                    nextIndexSize: Int,
                    indexOffset: Int,
                    valueOffset: Int,
-                   valueLength: Int) extends Persistent.SegmentResponse with LazyRangeValue with KeyValue.ReadOnly.Range {
+                   valueLength: Int) extends Persistent.SegmentResponse with KeyValue.ReadOnly.Range {
 
     def fromKey = _fromKey
 
     def toKey = _toKey
 
-    override def unsliceKey: Unit = {
+    override def indexEntryDeadline: Option[Deadline] = None
+
+    override def unsliceIndexBytes: Unit = {
       this._fromKey = _fromKey.unslice()
       this._toKey = _toKey.unslice()
     }
@@ -1572,12 +1210,34 @@ private[core] object Persistent {
     override def key: Slice[Byte] =
       _fromKey
 
-    override val deadline: Option[Deadline] = None
+    override def fetchFromValue: Try[Option[Value.FromValue]] =
+      lazyRangeValueReader.fetchFromValue
+
+    override def fetchRangeValue: Try[Value.RangeValue] =
+      lazyRangeValueReader.fetchRangeValue
+
+    override def fetchFromAndRangeValue: Try[(Option[Value.FromValue], Value.RangeValue)] =
+      lazyRangeValueReader.fetchFromAndRangeValue
+
+    override def isValueDefined: Boolean =
+      lazyRangeValueReader.isValueDefined
+
+    override def toMemory(): Try[Memory.Range] =
+      fetchFromAndRangeValue map {
+        case (fromValue, rangeValue) =>
+          Memory.Range(
+            fromKey = fromKey,
+            toKey = toKey,
+            fromValue = fromValue,
+            rangeValue = rangeValue
+          )
+      }
   }
 
   object Group {
     def apply(key: Slice[Byte],
               valueReader: Reader,
+              lazyGroupValueReader: LazyGroupValueReader,
               nextIndexOffset: Int,
               nextIndexSize: Int,
               indexOffset: Int,
@@ -1589,6 +1249,7 @@ private[core] object Persistent {
           Group(
             _minKey = minKey,
             _maxKey = maxKey,
+            lazyGroupValueReader = lazyGroupValueReader,
             groupDecompressor = GroupDecompressor(valueReader.copy(), valueOffset),
             valueReader = valueReader.copy(),
             nextIndexOffset = nextIndexOffset,
@@ -1604,13 +1265,14 @@ private[core] object Persistent {
   case class Group(private var _minKey: Slice[Byte],
                    private var _maxKey: MaxKey,
                    private val groupDecompressor: GroupDecompressor,
+                   private val lazyGroupValueReader: LazyGroupValueReader,
                    valueReader: Reader,
                    nextIndexOffset: Int,
                    nextIndexSize: Int,
                    indexOffset: Int,
                    valueOffset: Int,
                    valueLength: Int,
-                   deadline: Option[Deadline]) extends Persistent with KeyValue.ReadOnly.Group with LazyValue {
+                   deadline: Option[Deadline]) extends Persistent with KeyValue.ReadOnly.Group {
 
     lazy val segmentCacheInitializer =
       new SegmentCacheInitializer(
@@ -1625,6 +1287,8 @@ private[core] object Persistent {
         createReader = groupDecompressor.reader
       )
 
+    override def indexEntryDeadline: Option[Deadline] = deadline
+
     override def key: Slice[Byte] =
       _minKey
 
@@ -1634,7 +1298,7 @@ private[core] object Persistent {
     override def maxKey: MaxKey =
       _maxKey
 
-    override def unsliceKey: Unit = {
+    override def unsliceIndexBytes: Unit = {
       this._minKey = _minKey.unslice()
       this._maxKey = _maxKey.unslice()
     }
@@ -1658,8 +1322,12 @@ private[core] object Persistent {
     def uncompress(): Persistent.Group =
       copy(groupDecompressor = groupDecompressor.uncompress(), valueReader = valueReader.copy())
 
-    def segmentCache(implicit ordering: Ordering[Slice[Byte]],
+    def segmentCache(implicit keyOrder: KeyOrder[Slice[Byte]],
                      keyValueLimiter: KeyValueLimiter): SegmentCache =
       segmentCacheInitializer.segmentCache
+
+    override def isValueDefined: Boolean =
+      lazyGroupValueReader.isValueDefined
+
   }
 }

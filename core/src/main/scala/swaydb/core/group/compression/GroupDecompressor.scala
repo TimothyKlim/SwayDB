@@ -25,7 +25,7 @@ import swaydb.compression.DecompressorInternal
 import swaydb.core.group.compression.data.{GroupHeader, ValueInfo}
 import swaydb.core.io.reader.{GroupReader, Reader}
 import swaydb.core.segment.SegmentException
-import swaydb.core.segment.format.one.SegmentFooter
+import swaydb.core.segment.format.a.SegmentFooter
 import swaydb.core.util.TryUtil
 import swaydb.data.slice.Reader
 

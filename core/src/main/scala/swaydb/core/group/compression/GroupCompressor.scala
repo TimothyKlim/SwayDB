@@ -24,7 +24,7 @@ import swaydb.compression.CompressionInternal
 import swaydb.core.data.{KeyValue, Transient}
 import swaydb.core.group.compression.GroupCompressorFailure.InvalidGroupKeyValuesHeadPosition
 import swaydb.core.group.compression.data.{CompressionResult, ValueCompressionResult}
-import swaydb.core.segment.format.one.SegmentWriter
+import swaydb.core.segment.format.a.SegmentWriter
 import swaydb.core.util.TryUtil._
 import swaydb.core.util.{Bytes, TryUtil}
 import swaydb.data.segment.MaxKey

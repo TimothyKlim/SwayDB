@@ -31,27 +31,27 @@ import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 
 class LevelZeroSkipListMergerSpec extends WordSpec with Matchers with CommonAssertions {
-  override implicit val ordering = swaydb.order.KeyOrder.default
+  override implicit val keyOrder = swaydb.data.order.KeyOrder.default
   implicit val merger = swaydb.core.level.zero.LevelZeroSkipListMerge(10.seconds)
 
   import merger._
 
   "insert" should {
     "insert a Fixed value to an empty skipList" in {
-      val skipList = new ConcurrentSkipListMap[Slice[Byte], Memory.SegmentResponse](ordering)
+      val skipList = new ConcurrentSkipListMap[Slice[Byte], Memory.SegmentResponse](keyOrder)
 
-      insert(1, Memory.Put(1, "one"), skipList)
+      insert(1, Memory.put(1, "one"), skipList)
       skipList should have size 1
 
-      skipList.asScala.head shouldBe ((1: Slice[Byte], Memory.Put(1, "one")))
+      skipList.asScala.head shouldBe ((1: Slice[Byte], Memory.put(1, "one")))
     }
 
     "insert multiple fixed key-values" in {
-      val skipList = new ConcurrentSkipListMap[Slice[Byte], Memory.SegmentResponse](ordering)
+      val skipList = new ConcurrentSkipListMap[Slice[Byte], Memory.SegmentResponse](keyOrder)
 
       (0 to 9) foreach {
         i =>
-          insert(i, Memory.Put(i, i), skipList)
+          insert(i, Memory.put(i, i), skipList)
       }
 
       skipList should have size 10
@@ -59,14 +59,14 @@ class LevelZeroSkipListMergerSpec extends WordSpec with Matchers with CommonAsse
       skipList.asScala.zipWithIndex foreach {
         case ((key, value), index) =>
           key shouldBe (index: Slice[Byte])
-          value shouldBe Memory.Put(index, index)
+          value shouldBe Memory.put(index, index)
       }
     }
 
     "insert multiple non-overlapping ranges" in {
       //10 | 20 | 40 | 100
       //1  | 10 | 30 | 50
-      val skipList = new ConcurrentSkipListMap[Slice[Byte], Memory.SegmentResponse](ordering)
+      val skipList = new ConcurrentSkipListMap[Slice[Byte], Memory.SegmentResponse](keyOrder)
       insert(10, Memory.Range(10, 20, None, Value.Remove(None)), skipList)
       insert(30, Memory.Range(30, 40, None, Value.Update(40)), skipList)
       insert(50, Memory.Range(50, 100, Some(Value.Put(20)), Value.Remove(None)), skipList)
@@ -86,7 +86,7 @@ class LevelZeroSkipListMergerSpec extends WordSpec with Matchers with CommonAsse
       //15 | 20
       //1  | 15
 
-      val skipList = new ConcurrentSkipListMap[Slice[Byte], Memory.SegmentResponse](ordering)
+      val skipList = new ConcurrentSkipListMap[Slice[Byte], Memory.SegmentResponse](keyOrder)
 
       insert(10, Memory.Range(10, 20, None, Value.Update(20)), skipList)
       insert(1, Memory.Range(1, 15, None, Value.Update(40)), skipList)
@@ -106,7 +106,7 @@ class LevelZeroSkipListMergerSpec extends WordSpec with Matchers with CommonAsse
       //10 | 15 | 20
       //1  | 10 | 15
 
-      val skipList = new ConcurrentSkipListMap[Slice[Byte], Memory.SegmentResponse](ordering)
+      val skipList = new ConcurrentSkipListMap[Slice[Byte], Memory.SegmentResponse](keyOrder)
 
       //insert with put
       insert(10, Memory.Range(10, 20, Some(Value.Put(10)), Value.Update(20)), skipList)
@@ -120,7 +120,7 @@ class LevelZeroSkipListMergerSpec extends WordSpec with Matchers with CommonAsse
     }
 
     "insert overlapping ranges when insert fromKey is greater than existing range's fromKey" in {
-      val skipList = new ConcurrentSkipListMap[Slice[Byte], Memory.SegmentResponse](ordering)
+      val skipList = new ConcurrentSkipListMap[Slice[Byte], Memory.SegmentResponse](keyOrder)
       //10
       //1
       insert(1, Memory.Range(1, 15, None, Value.Update(40)), skipList)
@@ -134,7 +134,7 @@ class LevelZeroSkipListMergerSpec extends WordSpec with Matchers with CommonAsse
     }
 
     "insert overlapping ranges when insert fromKey is greater than existing range's fromKey and fromKey is set" in {
-      val skipList = new ConcurrentSkipListMap[Slice[Byte], Memory.SegmentResponse](ordering)
+      val skipList = new ConcurrentSkipListMap[Slice[Byte], Memory.SegmentResponse](keyOrder)
       //15
       //1 (Put(1))
       insert(1, Memory.Range(1, 15, Some(Value.Put(1)), Value.Update(40)), skipList)
@@ -148,7 +148,7 @@ class LevelZeroSkipListMergerSpec extends WordSpec with Matchers with CommonAsse
     }
 
     "insert overlapping ranges without values set and no splits required" in {
-      val skipList = new ConcurrentSkipListMap[Slice[Byte], Memory.SegmentResponse](ordering)
+      val skipList = new ConcurrentSkipListMap[Slice[Byte], Memory.SegmentResponse](keyOrder)
       insert(1, Memory.Range(1, 5, None, Value.Update(5)), skipList)
       insert(5, Memory.Range(5, 10, None, Value.Update(10)), skipList)
       insert(10, Memory.Range(10, 20, None, Value.Update(20)), skipList)
@@ -169,7 +169,7 @@ class LevelZeroSkipListMergerSpec extends WordSpec with Matchers with CommonAsse
     }
 
     "insert overlapping ranges with values set and no splits required" in {
-      val skipList = new ConcurrentSkipListMap[Slice[Byte], Memory.SegmentResponse](ordering)
+      val skipList = new ConcurrentSkipListMap[Slice[Byte], Memory.SegmentResponse](keyOrder)
       insert(1, Memory.Range(1, 5, Some(Value.Put(1)), Value.Update(5)), skipList)
       insert(5, Memory.Range(5, 10, None, Value.Update(10)), skipList)
       insert(10, Memory.Range(10, 20, Some(Value.Put(10)), Value.Update(20)), skipList)
@@ -190,7 +190,7 @@ class LevelZeroSkipListMergerSpec extends WordSpec with Matchers with CommonAsse
     }
 
     "insert overlapping ranges with values set and splits required" in {
-      val skipList = new ConcurrentSkipListMap[Slice[Byte], Memory.SegmentResponse](ordering)
+      val skipList = new ConcurrentSkipListMap[Slice[Byte], Memory.SegmentResponse](keyOrder)
       insert(1, Memory.Range(1, 5, Some(Value.Put(1)), Value.Update(5)), skipList)
       insert(5, Memory.Range(5, 10, None, Value.Update(10)), skipList)
       insert(10, Memory.Range(10, 20, Some(Value.Put(10)), Value.Update(20)), skipList)
@@ -212,29 +212,29 @@ class LevelZeroSkipListMergerSpec extends WordSpec with Matchers with CommonAsse
     }
 
     "remove range should remove invalid entries" in {
-      val skipList = new ConcurrentSkipListMap[Slice[Byte], Memory.SegmentResponse](ordering)
-      insert(1, Memory.Put(1, 1), skipList)
-      insert(2, Memory.Put(2, 2), skipList)
-      insert(4, Memory.Put(4, 4), skipList)
-      insert(5, Memory.Put(5, 5), skipList)
+      val skipList = new ConcurrentSkipListMap[Slice[Byte], Memory.SegmentResponse](keyOrder)
+      insert(1, Memory.put(1, 1), skipList)
+      insert(2, Memory.put(2, 2), skipList)
+      insert(4, Memory.put(4, 4), skipList)
+      insert(5, Memory.put(5, 5), skipList)
 
       insert(2, Memory.Range(2, 5, None, Value.Remove(None)), skipList)
       skipList should have size 3
 
-      skipList.get(1: Slice[Byte]) shouldBe Memory.Put(1, 1)
+      skipList.get(1: Slice[Byte]) shouldBe Memory.put(1, 1)
       skipList.get(2: Slice[Byte]) shouldBe Memory.Range(2, 5, None, Value.Remove(None))
       skipList.get(3: Slice[Byte]) should be(null)
       skipList.get(4: Slice[Byte]) should be(null)
-      skipList.get(5: Slice[Byte]) shouldBe Memory.Put(5, 5)
+      skipList.get(5: Slice[Byte]) shouldBe Memory.put(5, 5)
 
-      insert(5, Memory.Remove(5), skipList)
-      skipList.get(5: Slice[Byte]) shouldBe Memory.Remove(5)
+      insert(5, Memory.remove(5), skipList)
+      skipList.get(5: Slice[Byte]) shouldBe Memory.remove(5)
 
       skipList should have size 3
     }
 
     "remove range when skipList is empty" in {
-      val skipList = new ConcurrentSkipListMap[Slice[Byte], Memory.SegmentResponse](ordering)
+      val skipList = new ConcurrentSkipListMap[Slice[Byte], Memory.SegmentResponse](keyOrder)
       insert(2, Memory.Range(2, 100, None, Value.Remove(None)), skipList)
       skipList should have size 1
 
@@ -245,68 +245,68 @@ class LevelZeroSkipListMergerSpec extends WordSpec with Matchers with CommonAsse
     }
 
     "remove range should clear removed entries when remove ranges overlaps the left edge" in {
-      val skipList = new ConcurrentSkipListMap[Slice[Byte], Memory.SegmentResponse](ordering)
+      val skipList = new ConcurrentSkipListMap[Slice[Byte], Memory.SegmentResponse](keyOrder)
       //1           -              10
       (1 to 10) foreach {
         i =>
-          insert(i, Memory.Put(i, i), skipList)
+          insert(i, Memory.put(i, i), skipList)
       }
 
       //1           -              10
       //       4    -      8
       insert(4, Memory.Range(4, 8, None, Value.Remove(None)), skipList)
-      insert(8, Memory.Remove(8), skipList)
+      insert(8, Memory.remove(8), skipList)
       //1           -              10
       //   2    -    5
       insert(2, Memory.Range(2, 5, None, Value.Remove(None)), skipList)
 
-      skipList.get(1: Slice[Byte]) shouldBe Memory.Put(1, 1)
+      skipList.get(1: Slice[Byte]) shouldBe Memory.put(1, 1)
       skipList.get(2: Slice[Byte]) shouldBe Memory.Range(2, 4, None, Value.Remove(None))
       skipList.get(3: Slice[Byte]) should be(null)
       skipList.get(4: Slice[Byte]) shouldBe Memory.Range(4, 5, None, Value.Remove(None))
       skipList.get(5: Slice[Byte]) shouldBe Memory.Range(5, 8, None, Value.Remove(None))
       skipList.get(6: Slice[Byte]) should be(null)
       skipList.get(7: Slice[Byte]) should be(null)
-      skipList.get(8: Slice[Byte]) shouldBe Memory.Remove(8)
-      skipList.get(9: Slice[Byte]) shouldBe Memory.Put(9, 9)
-      skipList.get(10: Slice[Byte]) shouldBe Memory.Put(10, 10)
+      skipList.get(8: Slice[Byte]) shouldBe Memory.remove(8)
+      skipList.get(9: Slice[Byte]) shouldBe Memory.put(9, 9)
+      skipList.get(10: Slice[Byte]) shouldBe Memory.put(10, 10)
     }
 
     "remove range should clear removed entries when remove ranges overlaps the right edge" in {
-      val skipList = new ConcurrentSkipListMap[Slice[Byte], Memory.SegmentResponse](ordering)
+      val skipList = new ConcurrentSkipListMap[Slice[Byte], Memory.SegmentResponse](keyOrder)
       //1           -              10
       (1 to 10) foreach {
         i =>
-          insert(i, Memory.Put(i, i), skipList)
+          insert(i, Memory.put(i, i), skipList)
       }
       //1           -              10
       //   2    -    5
       insert(2, Memory.Range(2, 5, None, Value.Remove(None)), skipList)
-      insert(5, Memory.Remove(5), skipList)
+      insert(5, Memory.remove(5), skipList)
       //1           -              10
       //       4    -      8
       insert(4, Memory.Range(4, 8, None, Value.Remove(None)), skipList)
-      //      insert(8, Memory.Remove(8), skipList)
+      //      insert(8, Memory.remove(8), skipList)
 
-      skipList.get(1: Slice[Byte]) shouldBe Memory.Put(1, 1)
+      skipList.get(1: Slice[Byte]) shouldBe Memory.put(1, 1)
       skipList.get(2: Slice[Byte]) shouldBe Memory.Range(2, 4, None, Value.Remove(None))
       skipList.get(3: Slice[Byte]) should be(null)
       skipList.get(4: Slice[Byte]) shouldBe Memory.Range(4, 5, None, Value.Remove(None))
       skipList.get(5: Slice[Byte]) shouldBe Memory.Range(5, 8, None, Value.Remove(None))
       skipList.get(6: Slice[Byte]) should be(null)
       skipList.get(7: Slice[Byte]) should be(null)
-      skipList.get(8: Slice[Byte]) shouldBe Memory.Put(8, 8)
-      skipList.get(9: Slice[Byte]) shouldBe Memory.Put(9, 9)
-      skipList.get(10: Slice[Byte]) shouldBe Memory.Put(10, 10)
+      skipList.get(8: Slice[Byte]) shouldBe Memory.put(8, 8)
+      skipList.get(9: Slice[Byte]) shouldBe Memory.put(9, 9)
+      skipList.get(10: Slice[Byte]) shouldBe Memory.put(10, 10)
     }
 
     "insert fixed key-values into remove range" in {
-      val skipList = new ConcurrentSkipListMap[Slice[Byte], Memory.SegmentResponse](ordering)
+      val skipList = new ConcurrentSkipListMap[Slice[Byte], Memory.SegmentResponse](keyOrder)
       //1           -              10
       insert(1, Memory.Range(1, 10, None, Value.Remove(None)), skipList)
       (1 to 10) foreach {
         i =>
-          insert(i, Memory.Put(i, i), skipList)
+          insert(i, Memory.put(i, i), skipList)
       }
 
       skipList.get(1: Slice[Byte]) shouldBe Memory.Range(1, 2, Value.Put(1), Value.Remove(None))
@@ -318,7 +318,7 @@ class LevelZeroSkipListMergerSpec extends WordSpec with Matchers with CommonAsse
       skipList.get(7: Slice[Byte]) shouldBe Memory.Range(7, 8, Value.Put(7), Value.Remove(None))
       skipList.get(8: Slice[Byte]) shouldBe Memory.Range(8, 9, Value.Put(8), Value.Remove(None))
       skipList.get(9: Slice[Byte]) shouldBe Memory.Range(9, 10, Value.Put(9), Value.Remove(None))
-      skipList.get(10: Slice[Byte]) shouldBe Memory.Put(10, 10)
+      skipList.get(10: Slice[Byte]) shouldBe Memory.put(10, 10)
     }
   }
 }

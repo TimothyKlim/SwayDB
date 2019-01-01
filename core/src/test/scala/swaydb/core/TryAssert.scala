@@ -20,10 +20,31 @@
 package swaydb.core
 
 import org.scalatest.Matchers
-
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Random, Success, Try}
 
 trait TryAssert extends Matchers {
+
+  def randomly[T](f: => T): Option[T] =
+    if (Random.nextBoolean())
+      Some(f)
+    else
+      None
+
+  def eitherOne[T](left: => T, right: => T): T =
+    if (Random.nextBoolean())
+      left
+    else
+      right
+
+  def anyOrder[T](left: => T, right: => T): Unit =
+    if (Random.nextBoolean()) {
+      left
+      right
+    } else {
+      right
+      left
+    }
+
 
   implicit class GetTryImplicit[T](getThis: Try[T]) {
     def assertGet: T =

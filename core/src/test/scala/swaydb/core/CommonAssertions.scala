@@ -19,15 +19,19 @@
 
 package swaydb.core
 
-import java.util.concurrent.ConcurrentSkipListMap
-
 import bloomfilter.mutable.BloomFilter
+import java.util.concurrent.ConcurrentSkipListMap
 import org.scalatest.Assertion
+import scala.annotation.tailrec
+import scala.collection.JavaConverters._
+import scala.concurrent.duration._
+import scala.reflect.ClassTag
+import scala.util.{Random, Try}
 import swaydb.compression.CompressionInternal
-import swaydb.core.TestLimitQueues._
 import swaydb.core.data.KeyValue.{ReadOnly, WriteOnly}
 import swaydb.core.data.Value.FromValue
 import swaydb.core.data.{Memory, Value, _}
+import swaydb.core.function.FunctionStore
 import swaydb.core.group.compression.GroupCompressor
 import swaydb.core.group.compression.data.{GroupGroupingStrategyInternal, KeyValueGroupingStrategyInternal}
 import swaydb.core.io.reader.Reader
@@ -35,36 +39,33 @@ import swaydb.core.level.zero.{LevelZero, LevelZeroRef, LevelZeroSkipListMerge}
 import swaydb.core.level.{Level, LevelRef}
 import swaydb.core.map.MapEntry
 import swaydb.core.map.serializer.MapEntryWriter
-import swaydb.core.queue.{KeyValueLimiter, SegmentOpenLimiter}
+import swaydb.core.merge.KeyValueMerger
 import swaydb.core.segment.Segment
-import swaydb.core.segment.format.one._
-import swaydb.core.segment.merge.{KeyValueMerger, SegmentMerger}
+import swaydb.core.segment.format.a.{KeyMatcher, SegmentFooter, SegmentReader, SegmentWriter}
+import swaydb.core.segment.merge.SegmentMerger
 import swaydb.core.util.CollectionUtil._
 import swaydb.data.slice.{Reader, Slice}
+import swaydb.data.order.{KeyOrder, TimeOrder}
 import swaydb.data.util.StorageUnits._
-import swaydb.order.KeyOrder
-
-import scala.annotation.tailrec
-import scala.collection.JavaConverters._
-import scala.concurrent.duration._
-import scala.reflect.ClassTag
-import scala.util.{Random, Try}
 
 trait CommonAssertions extends TryAssert with FutureBase with TestData {
 
-  implicit val ordering: Ordering[Slice[Byte]] = KeyOrder.default
+  implicit val keyOrder: KeyOrder[Slice[Byte]] = KeyOrder.default
+  implicit val timeOrder: TimeOrder[Slice[Byte]] = TimeOrder.long
 
   implicit val keyValueLimiter = TestLimitQueues.keyValueLimiter
 
+  implicit val functionStore: FunctionStore = FunctionStore.memory()
+
   def groupingStrategy: Option[KeyValueGroupingStrategyInternal] = None
 
-  def randomCompressionTypeOption(keyValuesCount: Int): Option[KeyValueGroupingStrategyInternal] =
+  def randomCompressionOption(keyValuesCount: Int): Option[KeyValueGroupingStrategyInternal] =
     eitherOne(
       left = None,
-      right = Some(randomCompressionType(keyValuesCount))
+      right = Some(randomCompression(keyValuesCount))
     )
 
-  def randomCompressionType(keyValuesCount: Int): KeyValueGroupingStrategyInternal =
+  def randomCompression(keyValuesCount: Int): KeyValueGroupingStrategyInternal =
     eitherOne(
       left =
         KeyValueGroupingStrategyInternal.Count(
@@ -120,31 +121,11 @@ trait CommonAssertions extends TryAssert with FutureBase with TestData {
         )
     )
 
-  def randomly[T](f: => T): Option[T] =
-    if (Random.nextBoolean())
-      Some(f)
-    else
-      None
-
-  def eitherOne[T](left: => T, right: => T): T =
-    if (Random.nextBoolean())
-      left
-    else
-      right
-
-  def anyOrder[T](execution1: => T, execution2: => T): Unit =
-    if (Random.nextBoolean()) {
-      execution1
-      execution2
-    } else {
-      execution2
-      execution1
-    }
 
   def runThis(times: Int)(f: => Unit): Unit =
     (1 to times) foreach {
       i =>
-        //        println(s"Iteration number: $i")
+//        println(s"Iteration number: $i")
         f
     }
 
@@ -153,9 +134,9 @@ trait CommonAssertions extends TryAssert with FutureBase with TestData {
       fromValue match {
         case _: Value.Remove =>
           None
-        case Value.Put(value, deadline) =>
+        case Value.Put(value, deadline, time) =>
           if (deadline.forall(_.hasTimeLeft()))
-            Some(Memory.Put(key, value, deadline))
+            Some(Memory.Put(key, value, deadline, time))
           else
             None
         case _: Value.Update =>
@@ -163,10 +144,33 @@ trait CommonAssertions extends TryAssert with FutureBase with TestData {
       }
   }
 
+  implicit class ValueImplicits(value: Value) {
+    def deadline =
+      value match {
+        case value: FromValue =>
+          value match {
+            case value: Value.RangeValue =>
+              value match {
+                case _: Value.Apply =>
+                  ???
+                case Value.Remove(deadline, time) =>
+                  deadline
+                case Value.Update(value, deadline, time) =>
+                  deadline
+                case Value.Function(function, time) =>
+                  ???
+                case Value.PendingApply(applies) =>
+                  ???
+              }
+            case Value.Put(value, deadline, time) =>
+              deadline
+          }
+      }
+  }
   implicit class IsKeyValueExpectedInLastLevel(keyValue: Memory.Fixed) {
     def isExpectedInLastLevel: Boolean =
       keyValue match {
-        case Memory.Put(key, value, deadline) =>
+        case Memory.Put(key, value, deadline, time) =>
           if (deadline.forall(_.hasTimeLeft()))
             true
           else
@@ -176,12 +180,36 @@ trait CommonAssertions extends TryAssert with FutureBase with TestData {
       }
   }
 
-  implicit class ApplyValue(keyValues: (Memory.Fixed, Memory.Fixed)) {
+  implicit class MergeKeyValues(keyValues: (Memory.Fixed, Memory.Fixed)) {
     def merge: ReadOnly.Fixed =
-      KeyValueMerger.applyValue(keyValues._1, keyValues._2, 10.seconds).assertGet
+      KeyValueMerger(
+        key = Some(keyValues._1.key),
+        newKeyValue = keyValues._1.toValue().assertGet,
+        oldKeyValue = keyValues._2.toValue().assertGet
+      ).assertGet.toMemory(keyValues._1.key)
 
     def mergeFailed: Throwable =
-      KeyValueMerger.applyValue(keyValues._1, keyValues._2, 10.seconds).failed.assertGet
+      KeyValueMerger(
+        key = Some(keyValues._1.key),
+        newKeyValue = keyValues._1.toValue().assertGet,
+        oldKeyValue = keyValues._2.toValue().assertGet
+      ).failed.assertGet
+  }
+
+  implicit class MergeKeyValue(newKeyValue: Memory.Fixed) {
+    def merge(oldKeyValue: Memory.Fixed): ReadOnly.Fixed =
+      KeyValueMerger(
+        key = Some(newKeyValue.key),
+        newKeyValue = newKeyValue.toValue().assertGet,
+        oldKeyValue = oldKeyValue.toValue().assertGet
+      ).assertGet.toMemory(newKeyValue.key)
+
+    def mergeFailed(oldKeyValue: Memory.Fixed): Throwable =
+      KeyValueMerger(
+        key = Some(newKeyValue.key),
+        newKeyValue = newKeyValue.toValue().assertGet,
+        oldKeyValue = oldKeyValue.toValue().assertGet
+      ).failed.assertGet
   }
 
   implicit class KeyValueWriteOnlyImplicits(keyValues: Iterable[KeyValue.WriteOnly]) {
@@ -208,14 +236,8 @@ trait CommonAssertions extends TryAssert with FutureBase with TestData {
   }
 
   implicit class ToSlice[T: ClassTag](items: Iterable[T]) {
-    def toSlice: Slice[T] = {
-      val slice = Slice.create[T](items.size)
-      items foreach {
-        item =>
-          slice add item
-      }
-      slice
-    }
+    def toSlice: Slice[T] =
+      Slice.empty ++ items
   }
 
   implicit class WriteOnlyToMemory(keyValue: KeyValue.WriteOnly) {
@@ -223,14 +245,14 @@ trait CommonAssertions extends TryAssert with FutureBase with TestData {
       keyValue match {
         case fixed: KeyValue.WriteOnly.Fixed =>
           fixed match {
-            case Transient.Remove(key, deadline, previous, falsePositiveRate) =>
-              Memory.Remove(key, deadline)
+            case Transient.Remove(key, deadline, time, previous, falsePositiveRate) =>
+              Memory.Remove(key, deadline, time)
 
-            case Transient.Update(key, value, deadline, previous, falsePositiveRate, compressDuplicateValues) =>
-              Memory.Update(key, value, deadline)
+            case Transient.Update(key, value, deadline, time, previous, falsePositiveRate, compressDuplicateValues) =>
+              Memory.Update(key, value, deadline, time)
 
-            case Transient.Put(key, value, deadline, previous, falsePositiveRate, compressDuplicateValues) =>
-              Memory.Put(key, value, deadline)
+            case Transient.Put(key, value, deadline, time, previous, falsePositiveRate, compressDuplicateValues) =>
+              Memory.Put(key, value, deadline, time)
           }
 
         case range: KeyValue.WriteOnly.Range =>
@@ -320,17 +342,46 @@ trait CommonAssertions extends TryAssert with FutureBase with TestData {
           memory match {
             case fixed: Memory.Fixed =>
               fixed match {
-                case Memory.Put(key, value, deadline) =>
-                  Transient.Put(key, value, 0.1, None, deadline, compressDuplicateValues = true)
+                case Memory.Put(key, value, deadline, time) =>
+                  Transient.Put(
+                    key = key,
+                    value = value,
+                    falsePositiveRate = 0.1,
+                    previous = None,
+                    deadline = deadline,
+                    compressDuplicateValues = true,
+                    time = time
+                  )
 
-                case Memory.Update(key, value, deadline) =>
-                  Transient.Update(key, value, 0.1, None, deadline, compressDuplicateValues = true)
+                case Memory.Update(key, value, deadline, time) =>
+                  Transient.Update(
+                    key = key,
+                    value = value,
+                    falsePositiveRate = 0.1,
+                    previous = None,
+                    deadline = deadline,
+                    compressDuplicateValues = true,
+                    time = time
+                  )
 
-                case Memory.Remove(key, deadline) =>
-                  Transient.Remove(key, 0.1, None, deadline)
+                case Memory.Remove(key, deadline, time) =>
+                  Transient.Remove(
+                    key = key,
+                    falsePositiveRate = 0.1,
+                    previous = None,
+                    deadline = deadline,
+                    time = time
+                  )
               }
             case Memory.Range(fromKey, toKey, fromValue, rangeValue) =>
-              Transient.Range[Value.FromValue, Value.RangeValue](fromKey, toKey, fromValue, rangeValue, 0.1, None)
+              Transient.Range[Value.FromValue, Value.RangeValue](
+                fromKey = fromKey,
+                toKey = toKey,
+                fromValue = fromValue,
+                rangeValue = rangeValue,
+                falsePositiveRate = 0.1,
+                previous = None
+              )
 
             case group @ Memory.Group(fromKey, toKey, nearestDeadline, groupDecompressor, _) =>
               val keyValues: Iterable[KeyValue.WriteOnly] = group.segmentCache.getAll().assertGet.toTransient
@@ -347,21 +398,50 @@ trait CommonAssertions extends TryAssert with FutureBase with TestData {
           persistent match {
             case persistent: Persistent.Fixed =>
               persistent match {
-                case put @ Persistent.Put(key, deadline, valueReader, nextIndexOffset, nextIndexSize, indexOffset, valueOffset, valueLength) =>
-                  Transient.Put(key, put.getOrFetchValue.assertGetOpt, 0.1, None, deadline, compressDuplicateValues = true)
+                case put @ Persistent.Put(key, deadline, valueReader, time, nextIndexOffset, nextIndexSize, indexOffset, valueOffset, valueLength) =>
+                  Transient.Put(
+                    key = key,
+                    value = put.getOrFetchValue.assertGetOpt,
+                    deadline = deadline,
+                    previous = None,
+                    falsePositiveRate = 0.1,
+                    compressDuplicateValues = true,
+                    time = time
+                  )
 
-                case put @ Persistent.Update(key, deadline, valueReader, nextIndexOffset, nextIndexSize, indexOffset, valueOffset, valueLength) =>
-                  Transient.Update(key, put.getOrFetchValue.assertGetOpt, 0.1, None, deadline, compressDuplicateValues = true)
+                case put @ Persistent.Update(key, deadline, valueReader, time, nextIndexOffset, nextIndexSize, indexOffset, valueOffset, valueLength) =>
+                  Transient.Update(
+                    key = key,
+                    value = put.getOrFetchValue.assertGetOpt,
+                    falsePositiveRate = 0.1,
+                    previous = None,
+                    deadline = deadline,
+                    compressDuplicateValues = true,
+                    time = time
+                  )
 
-                case Persistent.Remove(_key, deadline, indexOffset, nextIndexOffset, nextIndexSize) =>
-                  Transient.Remove(_key, 0.1, None, deadline)
+                case Persistent.Remove(_key, deadline, time, indexOffset, nextIndexOffset, nextIndexSize) =>
+                  Transient.Remove(
+                    key = _key,
+                    falsePositiveRate = 0.1,
+                    previous = None,
+                    deadline = deadline,
+                    time = time
+                  )
               }
 
             case range @ Persistent.Range(_fromKey, _toKey, valueReader, nextIndexOffset, nextIndexSize, indexOffset, valueOffset, valueLength) =>
               val (fromValue, rangeValue) = range.fetchFromAndRangeValue.assertGet
-              Transient.Range(_fromKey, _toKey, fromValue, rangeValue, 0.1, None)
+              Transient.Range(
+                fromKey = _fromKey,
+                toKey = _toKey,
+                fromValue = fromValue,
+                rangeValue = rangeValue,
+                falsePositiveRate = 0.1,
+                previous = None
+              )
 
-            case group @ Persistent.Group(_fromKey, _toKey, groupDecompressor, valueReader, nextIndexOffset, nextIndexSize, indexOffset, valueOffset, valueLength, deadline) =>
+            case group: Persistent.Group =>
               val allKeyValues = group.segmentCache.getAll().assertGet.toTransient
               Transient.Group(
                 keyValues = allKeyValues,
@@ -376,7 +456,7 @@ trait CommonAssertions extends TryAssert with FutureBase with TestData {
 
     def toMemoryGroup =
       keyValue match {
-        case Persistent.Group(minKey, maxKey, groupDecompressor, valueReader, nextIndexOffset, nextIndexSize, indexOffset, valueOffset, valueLength, deadline) =>
+        case Persistent.Group(minKey, maxKey, groupDecompressor, _, _, nextIndexOffset, nextIndexSize, indexOffset, valueOffset, valueLength, deadline) =>
           Memory.Group(
             minKey = minKey,
             maxKey = maxKey,
@@ -408,17 +488,17 @@ trait CommonAssertions extends TryAssert with FutureBase with TestData {
           persistent match {
             case persistent: Persistent.Fixed =>
               persistent match {
-                case put @ Persistent.Put(key, deadline, valueReader, nextIndexOffset, nextIndexSize, indexOffset, valueOffset, valueLength) =>
-                  Memory.Put(key, put.getOrFetchValue.assertGetOpt, deadline)
+                case put @ Persistent.Put(key, deadline, valueReader, time, nextIndexOffset, nextIndexSize, indexOffset, valueOffset, valueLength) =>
+                  Memory.Put(key, put.getOrFetchValue.assertGetOpt, deadline, time)
 
-                case put @ Persistent.Update(key, deadline, valueReader, nextIndexOffset, nextIndexSize, indexOffset, valueOffset, valueLength) =>
-                  Memory.Update(key, put.getOrFetchValue.assertGetOpt, deadline)
+                case put @ Persistent.Update(key, deadline, valueReader, time, nextIndexOffset, nextIndexSize, indexOffset, valueOffset, valueLength) =>
+                  Memory.Update(key, put.getOrFetchValue.assertGetOpt, deadline, time)
 
-                case Persistent.Remove(_key, deadline, indexOffset, nextIndexOffset, nextIndexSize) =>
-                  Memory.Remove(_key, deadline)
+                case Persistent.Remove(_key, deadline, time, indexOffset, nextIndexOffset, nextIndexSize) =>
+                  Memory.Remove(_key, deadline, time)
               }
 
-            case range @ Persistent.Range(_fromKey, _toKey, valueReader, nextIndexOffset, nextIndexSize, indexOffset, valueOffset, valueLength) =>
+            case range @ Persistent.Range(_fromKey, _toKey, _, nextIndexOffset, nextIndexSize, indexOffset, valueOffset, valueLength) =>
               val (fromValue, rangeValue) = range.fetchFromAndRangeValue.assertGet
               Memory.Range(_fromKey, _toKey, fromValue, rangeValue)
           }
@@ -434,11 +514,11 @@ trait CommonAssertions extends TryAssert with FutureBase with TestData {
     //stringify the skipList so that it's readable
     def asString(value: Value): String =
       value match {
-        case Value.Remove(deadline) =>
+        case Value.Remove(deadline, time) =>
           s"Remove(deadline = $deadline)"
-        case Value.Put(value, deadline) =>
+        case Value.Put(value, deadline, time) =>
           s"Put(${value.map(_.read[Int]).getOrElse("None")}, deadline = $deadline)"
-        case Value.Update(value, deadline) =>
+        case Value.Update(value, deadline, time) =>
           s"Update(${value.map(_.read[Int]).getOrElse("None")}, deadline = $deadline)"
       }
   }
@@ -453,7 +533,7 @@ trait CommonAssertions extends TryAssert with FutureBase with TestData {
                           oldKeyValues: Iterable[KeyValue.ReadOnly.SegmentResponse],
                           expected: Iterable[KeyValue],
                           hasTimeLeftAtLeast: FiniteDuration): ConcurrentSkipListMap[Slice[Byte], Memory.SegmentResponse] = {
-    val skipList = new ConcurrentSkipListMap[Slice[Byte], Memory.SegmentResponse](ordering)
+    val skipList = new ConcurrentSkipListMap[Slice[Byte], Memory.SegmentResponse](keyOrder)
     (oldKeyValues ++ newKeyValues).map(_.toMemoryResponse) foreach (memory => LevelZeroSkipListMerge(hasTimeLeftAtLeast).insert(memory.key, memory, skipList))
     skipList.size() shouldBe expected.size
     skipList.asScala.toList shouldBe expected.map(keyValue => (keyValue.key, keyValue.toMemory))
@@ -464,7 +544,7 @@ trait CommonAssertions extends TryAssert with FutureBase with TestData {
                   oldKeyValue: KeyValue.ReadOnly.SegmentResponse,
                   expected: Slice[KeyValue.WriteOnly],
                   hasTimeLeftAtLeast: FiniteDuration,
-                  isLastLevel: Boolean = false)(implicit ordering: Ordering[Slice[Byte]],
+                  isLastLevel: Boolean = false)(implicit keyOrder: KeyOrder[Slice[Byte]],
                                                 groupingStrategy: Option[KeyValueGroupingStrategyInternal]): Iterable[Iterable[KeyValue.WriteOnly]] =
     assertMerge(Slice(newKeyValue), Slice(oldKeyValue), expected, hasTimeLeftAtLeast, isLastLevel)
 
@@ -472,9 +552,9 @@ trait CommonAssertions extends TryAssert with FutureBase with TestData {
                   oldKeyValues: Slice[KeyValue.ReadOnly.SegmentResponse],
                   expected: Slice[KeyValue.WriteOnly],
                   hasTimeLeftAtLeast: FiniteDuration,
-                  isLastLevel: Boolean)(implicit ordering: Ordering[Slice[Byte]],
+                  isLastLevel: Boolean)(implicit keyOrder: KeyOrder[Slice[Byte]],
                                         groupingStrategy: Option[KeyValueGroupingStrategyInternal]): Iterable[Iterable[KeyValue.WriteOnly]] = {
-    val result = SegmentMerger.merge(newKeyValues, oldKeyValues, 10.mb, isLastLevel = isLastLevel, false, 0.1, hasTimeLeftAtLeast = hasTimeLeftAtLeast, compressDuplicateValues = true).assertGet
+    val result = SegmentMerger.merge(newKeyValues, oldKeyValues, 10.mb, isLastLevel = isLastLevel, false, 0.1, compressDuplicateValues = true).assertGet
     if (expected.size == 0) {
       result shouldBe empty
     } else {
@@ -489,7 +569,7 @@ trait CommonAssertions extends TryAssert with FutureBase with TestData {
                   oldKeyValue: KeyValue.ReadOnly.SegmentResponse,
                   expected: KeyValue.ReadOnly,
                   lastLevelExpect: KeyValue.ReadOnly,
-                  hasTimeLeftAtLeast: FiniteDuration)(implicit ordering: Ordering[Slice[Byte]],
+                  hasTimeLeftAtLeast: FiniteDuration)(implicit keyOrder: KeyOrder[Slice[Byte]],
                                                       groupingStrategy: Option[KeyValueGroupingStrategyInternal]): Iterable[Iterable[KeyValue.WriteOnly]] =
     assertMerge(newKeyValue, oldKeyValue, Slice(expected), Slice(lastLevelExpect), hasTimeLeftAtLeast)
 
@@ -497,7 +577,7 @@ trait CommonAssertions extends TryAssert with FutureBase with TestData {
                   oldKeyValue: KeyValue.ReadOnly.SegmentResponse,
                   expected: KeyValue.ReadOnly,
                   lastLevelExpect: Option[KeyValue.ReadOnly],
-                  hasTimeLeftAtLeast: FiniteDuration)(implicit ordering: Ordering[Slice[Byte]],
+                  hasTimeLeftAtLeast: FiniteDuration)(implicit keyOrder: KeyOrder[Slice[Byte]],
                                                       groupingStrategy: Option[KeyValueGroupingStrategyInternal]): Unit = {
     //    println("*** Expected assert ***")
     assertMerge(newKeyValue, oldKeyValue, Slice(expected), lastLevelExpect.map(Slice(_)).getOrElse(Slice.empty), hasTimeLeftAtLeast)
@@ -509,7 +589,7 @@ trait CommonAssertions extends TryAssert with FutureBase with TestData {
                   oldKeyValues: Slice[KeyValue.ReadOnly.SegmentResponse],
                   expected: Slice[KeyValue.ReadOnly],
                   lastLevelExpect: Slice[KeyValue.ReadOnly],
-                  hasTimeLeftAtLeast: FiniteDuration)(implicit ordering: Ordering[Slice[Byte]],
+                  hasTimeLeftAtLeast: FiniteDuration)(implicit keyOrder: KeyOrder[Slice[Byte]],
                                                       groupingStrategy: Option[KeyValueGroupingStrategyInternal]): Unit = {
     //    println("*** Expected assert ***")
     assertMerge(newKeyValues, oldKeyValues, expected.toTransient, hasTimeLeftAtLeast, isLastLevel = false)
@@ -523,7 +603,7 @@ trait CommonAssertions extends TryAssert with FutureBase with TestData {
                   oldKeyValue: KeyValue.ReadOnly.SegmentResponse,
                   expected: Slice[KeyValue.ReadOnly],
                   lastLevelExpect: Slice[KeyValue.ReadOnly],
-                  hasTimeLeftAtLeast: FiniteDuration)(implicit ordering: Ordering[Slice[Byte]],
+                  hasTimeLeftAtLeast: FiniteDuration)(implicit keyOrder: KeyOrder[Slice[Byte]],
                                                       groupingStrategy: Option[KeyValueGroupingStrategyInternal]): Iterable[Iterable[KeyValue.WriteOnly]] = {
     //    println("*** Last level = false ***")
     assertMerge(Slice(newKeyValue), Slice(oldKeyValue), expected.toTransient, hasTimeLeftAtLeast, isLastLevel = false)
@@ -535,7 +615,7 @@ trait CommonAssertions extends TryAssert with FutureBase with TestData {
                   oldKeyValues: Slice[KeyValue.ReadOnly.SegmentResponse],
                   expected: KeyValue.WriteOnly,
                   hasTimeLeftAtLeast: FiniteDuration,
-                  isLastLevel: Boolean)(implicit ordering: Ordering[Slice[Byte]],
+                  isLastLevel: Boolean)(implicit keyOrder: KeyOrder[Slice[Byte]],
                                         groupingStrategy: Option[KeyValueGroupingStrategyInternal]): Iterable[Iterable[KeyValue.WriteOnly]] =
     assertMerge(newKeyValues, oldKeyValues, Slice(expected), hasTimeLeftAtLeast, isLastLevel)
 
@@ -617,9 +697,24 @@ trait CommonAssertions extends TryAssert with FutureBase with TestData {
         case (actual: Memory.Group, expected: Memory.Group) =>
           actual.segmentCache.getAll().assertGet shouldBe expected.segmentCache.getAll().assertGet
         case _ =>
-          actual.toMemory should be(expected.toMemory)
+          actualMemory should be(expectedMemory)
       }
     }
+
+    def getOrFetchValue: Option[Slice[Byte]] =
+      actual match {
+        case actual: ReadOnly =>
+          actual match {
+            case range: ReadOnly.Range =>
+            case group: ReadOnly.Group =>
+            case memory: Memory =>
+            case persistent: Persistent =>
+          }
+          ???
+        case actual: WriteOnly =>
+          ???
+      }
+
   }
 
   implicit class StatsOptionImplicits(actual: Option[Stats]) {
@@ -666,8 +761,8 @@ trait CommonAssertions extends TryAssert with FutureBase with TestData {
 
         case expected: KeyValue.WriteOnly.Fixed =>
           actual.key shouldBe expected.key
-          actual.getOrFetchValue.assertGetOpt shouldBe expected.getOrFetchValue.assertGetOpt
-          actual.asInstanceOf[KeyValue.ReadOnly.Fixed].deadline shouldBe expected.deadline
+          actual.getOrFetchValue shouldBe expected.getOrFetchValue
+          actual.indexEntryDeadline shouldBe expected.deadline
       }
 
     }
@@ -686,7 +781,7 @@ trait CommonAssertions extends TryAssert with FutureBase with TestData {
 
         case expected: KeyValue.WriteOnly.Fixed =>
           actual.key shouldBe expected.key
-          actual.getOrFetchValue.assertGetOpt shouldBe expected.getOrFetchValue.assertGetOpt
+          actual.getOrFetchValue shouldBe expected.getOrFetchValue
           actual.asInstanceOf[KeyValue.WriteOnly.Fixed].deadline shouldBe expected.deadline
       }
     }
@@ -799,7 +894,7 @@ trait CommonAssertions extends TryAssert with FutureBase with TestData {
         val expectedLowerKeyValue = keyValues(index - 1)
         val lower = level.lower(keyValues(index).key).assertGet
         lower.key shouldBe expectedLowerKeyValue.key
-        lower.getOrFetchValue.assertGetOpt shouldBe expectedLowerKeyValue.getOrFetchValue.assertGetOpt
+        lower.getOrFetchValue.assertGetOpt shouldBe expectedLowerKeyValue.getOrFetchValue
         assertLowers(index + 1)
       }
     }
@@ -822,7 +917,7 @@ trait CommonAssertions extends TryAssert with FutureBase with TestData {
         val expectedHigherKeyValue = keyValues(index + 1)
         val (higherKey, higherValue) = level.higher(keyValues(index).key).assertGet
         higherKey shouldBe expectedHigherKeyValue.key
-        higherValue shouldBe expectedHigherKeyValue.getOrFetchValue.assertGetOpt
+        higherValue shouldBe expectedHigherKeyValue.getOrFetchValue
         assertHigher(index + 1)
       }
     }
@@ -845,7 +940,7 @@ trait CommonAssertions extends TryAssert with FutureBase with TestData {
 
         val (lowerKey, lowerValue) = level.lower(keyValues(index).key).assertGet
         lowerKey shouldBe expectedLowerKeyValue.key
-        lowerValue shouldBe expectedLowerKeyValue.getOrFetchValue.assertGetOpt
+        lowerValue shouldBe expectedLowerKeyValue.getOrFetchValue
         assertLowers(index + 1)
       }
     }
@@ -884,7 +979,7 @@ trait CommonAssertions extends TryAssert with FutureBase with TestData {
     keyValues foreach {
       keyValue =>
         val actual = level.getFromThisLevel(keyValue.key).assertGet
-        actual.getOrFetchValue.assertGetOpt shouldBe keyValue.getOrFetchValue.assertGetOpt
+        actual.getOrFetchValue shouldBe keyValue.getOrFetchValue
     }
 
   def assertReads(keyValues: Slice[KeyValue.WriteOnly],
@@ -938,20 +1033,20 @@ trait CommonAssertions extends TryAssert with FutureBase with TestData {
                 level: LevelZeroRef) =
     unzipGroups(keyValues) foreach {
       keyValue =>
-        level.get(keyValue.key).assertGet shouldBe keyValue.getOrFetchValue.assertGetOpt
+        level.get(keyValue.key).assertGet shouldBe keyValue.getOrFetchValue
     }
 
   def assertHeadLast(keyValues: Iterable[KeyValue],
                      zero: LevelZeroRef) = {
     val (headKey, headValue) = zero.head.assertGet
     headKey shouldBe keyValues.head.key
-    headValue shouldBe keyValues.head.getOrFetchValue.assertGetOpt
+    headValue shouldBe keyValues.head.getOrFetchValue
 
     zero.headKey.assertGet shouldBe keyValues.head.key
 
     val (lastKey, lastValue) = zero.last.assertGet
     lastKey shouldBe keyValues.last.key
-    lastValue shouldBe keyValues.last.getOrFetchValue.assertGetOpt
+    lastValue shouldBe keyValues.last.getOrFetchValue
     zero.lastKey.assertGet shouldBe keyValues.last.key
   }
 
@@ -1131,7 +1226,7 @@ trait CommonAssertions extends TryAssert with FutureBase with TestData {
                                addRandomRanges: Boolean = false,
                                addRandomRemoveDeadlines: Boolean = false,
                                addRandomPutDeadlines: Boolean = false): Slice[Memory.SegmentResponse] =
-    randomIntKeyValues(
+    randomKeyValues(
       count = count,
       startId = startId,
       valueSize = valueSize,
@@ -1153,7 +1248,7 @@ trait CommonAssertions extends TryAssert with FutureBase with TestData {
                   expectedValueCompressionUsed: Option[CompressionInternal]) = {
     val groupKeyValues = group.keyValues
     //check if there are values exists in the group's key-values. Use this flag to read values bytes.
-    val hasNoValues = groupKeyValues.forall(_.getOrFetchValue.assertGetOpt.isEmpty)
+    val hasNoValues = groupKeyValues.forall(_.value.isEmpty)
     //if no values exist, no value compression should be used.
     if (hasNoValues) expectedValueCompressionUsed shouldBe empty
 

@@ -1,0 +1,3 @@
+-J-XX:+CMSClassUnloadingEnabled
+-J-XX:MaxPermSize=10G
+-J-Xmx10G

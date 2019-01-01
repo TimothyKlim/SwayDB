@@ -19,6 +19,7 @@
 
 package swaydb.data.segment
 
+import swaydb.data.order.KeyOrder
 import swaydb.data.slice.Slice
 
 private[swaydb] sealed trait MaxKey {
@@ -38,8 +39,8 @@ private[swaydb] object MaxKey {
           Range(fromKey.unslice(), maxKey.unslice())
       }
 
-    def lessThan(key: Slice[Byte])(implicit ordering: Ordering[Slice[Byte]]): Boolean = {
-      import ordering._
+    def lessThan(key: Slice[Byte])(implicit keyOrder: KeyOrder[Slice[Byte]]): Boolean = {
+      import keyOrder._
       (maxKey.inclusive && maxKey.maxKey < key) || (!maxKey.inclusive && maxKey.maxKey <= key)
     }
   }

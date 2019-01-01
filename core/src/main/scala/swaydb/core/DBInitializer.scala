@@ -19,22 +19,23 @@
 
 package swaydb.core
 
-import java.nio.file.Paths
-
 import com.typesafe.scalalogging.LazyLogging
+import java.nio.file.Paths
+import scala.concurrent.ExecutionContext
+import scala.concurrent.duration.FiniteDuration
+import scala.util.{Success, Try}
+import swaydb.core.function.FunctionStore
 import swaydb.core.group.compression.data.KeyValueGroupingStrategyInternal
 import swaydb.core.io.file.DBFile
 import swaydb.core.level.zero.LevelZero
 import swaydb.core.level.{Level, LevelRef, TrashLevel}
 import swaydb.core.queue.{KeyValueLimiter, SegmentOpenLimiter}
+import swaydb.core.segment.format.a.entry.generators.GeneratorCallWarmUp
 import swaydb.core.util.FileUtil._
 import swaydb.data.config._
+import swaydb.data.order.{KeyOrder, TimeOrder}
 import swaydb.data.slice.Slice
 import swaydb.data.storage.{AppendixStorage, LevelStorage}
-
-import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.FiniteDuration
-import scala.util.{Success, Try}
 
 private[core] object DBInitializer extends LazyLogging {
 
@@ -43,7 +44,9 @@ private[core] object DBInitializer extends LazyLogging {
             cacheSize: Long,
             keyValueQueueDelay: FiniteDuration,
             segmentCloserDelay: FiniteDuration)(implicit ec: ExecutionContext,
-                                                ordering: Ordering[Slice[Byte]]): Try[CoreAPI] = {
+                                                keyOrder: KeyOrder[Slice[Byte]],
+                                                timeOrder: TimeOrder[Slice[Byte]],
+                                                functionStore: FunctionStore): Try[CoreAPI] = {
 
     implicit val fileOpenLimiter: DBFile => Unit =
       if (config.persistent)
@@ -135,6 +138,9 @@ private[core] object DBInitializer extends LazyLogging {
           }
       }
 
+    logger.info("Warming up key ids.")
+    GeneratorCallWarmUp.warmUp()
+    logger.info(s"Starting ${config.otherLevels.size} Levels.")
     createLevels(config.otherLevels.reverse, None)
   }
 

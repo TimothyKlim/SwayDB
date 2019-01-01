@@ -19,7 +19,6 @@
 
 package swaydb
 
-import swaydb.{Map, SwayDB}
 import swaydb.core.TestBase
 import swaydb.serializers.Default._
 

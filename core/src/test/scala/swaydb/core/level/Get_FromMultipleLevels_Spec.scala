@@ -25,7 +25,7 @@ import swaydb.core.data.Memory
 import swaydb.core.group.compression.data.KeyValueGroupingStrategyInternal
 import swaydb.core.util.Benchmark
 import swaydb.data.slice.Slice
-import swaydb.order.KeyOrder
+import swaydb.data.order.KeyOrder
 import swaydb.serializers.Default._
 import swaydb.serializers._
 
@@ -68,8 +68,8 @@ class Get_FromMultipleLevels_Spec3 extends Get_FromMultipleLevels_Spec {
 sealed trait Get_FromMultipleLevels_Spec extends TestBase with MockFactory with Benchmark {
 
   //@formatter:off
-  implicit override val groupingStrategy: Option[KeyValueGroupingStrategyInternal] = randomCompressionTypeOption(keyValuesCount)
-  override implicit val ordering: Ordering[Slice[Byte]] = KeyOrder.default
+  implicit override val groupingStrategy: Option[KeyValueGroupingStrategyInternal] = randomCompressionOption(keyValuesCount)
+  override implicit val keyOrder: KeyOrder[Slice[Byte]] = KeyOrder.default
   def keyValuesCount: Int
   def maxIterations: Int
   //@formatter:on
@@ -124,7 +124,7 @@ sealed trait Get_FromMultipleLevels_Spec extends TestBase with MockFactory with 
                 //If remove hasTimeLeft and lower Level's range has Put which is also not expired, then get should return the Put's value.
                 case (remove: Memory.Remove, put: Memory.Put) if remove.hasTimeLeft() && put.hasTimeLeft() =>
                   //expected Put will contain Remove's deadline if deadline exists else put's deadline.
-                  val expectedPut = remove.deadline.map(put.updateDeadline) getOrElse put
+                  val expectedPut = remove.deadline.map(deadline => put.copy(deadline = Some(deadline))) getOrElse put
                   level.get(1).assertGet shouldBe expectedPut
                   (2 to 15) foreach (i => level.get(i).assertGetOpt shouldBe empty)
 
@@ -142,9 +142,11 @@ sealed trait Get_FromMultipleLevels_Spec extends TestBase with MockFactory with 
                 case (update: Memory.Update, put: Memory.Put) if update.hasTimeLeft() && put.hasTimeLeft() =>
                   val expected =
                     if (update.deadline.isDefined)
-                      update.toPut()
+//                      update.toPut()
+                      ???
                     else
-                      put.deadline.map(update.toPut) getOrElse update.toPut()
+//                      put.deadline.map(update.toPut) getOrElse update.toPut()
+                    ???
 
                   level.get(1).assertGet shouldBe expected
 

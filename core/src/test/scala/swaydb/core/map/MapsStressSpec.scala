@@ -28,13 +28,13 @@ import swaydb.data.accelerate.{Accelerator, Level0Meter}
 import swaydb.data.config.RecoveryMode
 import swaydb.data.slice.Slice
 import swaydb.data.util.StorageUnits._
-import swaydb.order.KeyOrder
+import swaydb.data.order.KeyOrder
 
 import scala.concurrent.duration._
 
 class MapsStressSpec extends TestBase {
 
-  override implicit val ordering: Ordering[Slice[Byte]] = KeyOrder.default
+  override implicit val keyOrder: KeyOrder[Slice[Byte]] = KeyOrder.default
 
   import swaydb.core.map.serializer.LevelZeroMapEntryReader._
   import swaydb.core.map.serializer.LevelZeroMapEntryWriter._
@@ -45,7 +45,7 @@ class MapsStressSpec extends TestBase {
 
   "Maps.persistent" should {
     "initialise and recover over 1000 maps persistent map and on reopening them should recover state all 1000 persisted maps" in {
-      val keyValues = randomIntKeyValues(keyValueCount)
+      val keyValues = randomKeyValues(keyValueCount)
 
       //disable braking
       val acceleration =
@@ -56,14 +56,14 @@ class MapsStressSpec extends TestBase {
       def testWrite(maps: Maps[Slice[Byte], Memory.SegmentResponse]) = {
         keyValues foreach {
           keyValue =>
-            maps.write(MapEntry.Put(keyValue.key, Memory.Put(keyValue.key, keyValue.getOrFetchValue.assertGetOpt))).assertGet
+            maps.write(MapEntry.Put(keyValue.key, Memory.put(keyValue.key, keyValue.getOrFetchValue))).assertGet
         }
       }
 
       def testRead(maps: Maps[Slice[Byte], Memory.SegmentResponse]) = {
         keyValues foreach {
           keyValue =>
-            maps.get(keyValue.key).assertGet shouldBe Memory.Put(keyValue.key, keyValue.getOrFetchValue.assertGetOpt)
+            maps.get(keyValue.key).assertGet shouldBe Memory.put(keyValue.key, keyValue.getOrFetchValue)
         }
       }
 

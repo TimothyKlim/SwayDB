@@ -23,10 +23,10 @@ import swaydb.core.TestBase
 import swaydb.core.data._
 import swaydb.core.group.compression.data.KeyValueGroupingStrategyInternal
 import swaydb.core.io.reader.Reader
-import swaydb.core.segment.format.one.{SegmentReader, SegmentWriter}
+import swaydb.core.segment.format.a.{SegmentReader, SegmentWriter}
 import swaydb.data.slice.Slice
 import swaydb.data.util.StorageUnits._
-import swaydb.order.KeyOrder
+import swaydb.data.order.KeyOrder
 import swaydb.serializers.Default._
 import swaydb.serializers._
 
@@ -35,22 +35,22 @@ import scala.util.Random
 
 class SegmentGrouperSpec extends TestBase {
 
-  override implicit val ordering = KeyOrder.default
+  implicit val ordering = KeyOrder.default
   implicit val compression = groupingStrategy
   val keyValueCount = 100
 
-  import ordering._
+  import keyOrder._
 
   "SegmentGrouper.addKeyValue" should {
     "add KeyValue to next split and close the split if the new key-value does not fit" in {
 
       val initialSegment = ListBuffer[KeyValue.WriteOnly]()
-      initialSegment += Transient.Put(key = 1, value = 1, previous = None, falsePositiveRate = 0.1, compressDuplicateValues = true)
-      initialSegment += Transient.Put(key = 2, value = 2, previous = initialSegment.lastOption, falsePositiveRate = 0.1, compressDuplicateValues = true) //total segmentSize is 60 bytes
+      initialSegment += Transient.put(key = 1, value = 1, previous = None, falsePositiveRate = 0.1, compressDuplicateValues = true)
+      initialSegment += Transient.put(key = 2, value = 2, previous = initialSegment.lastOption, falsePositiveRate = 0.1, compressDuplicateValues = true) //total segmentSize is 60 bytes
 
       val segments = ListBuffer[ListBuffer[KeyValue.WriteOnly]](initialSegment)
       //this KeyValue's segment size without footer is 13 bytes
-      val keyValue = Memory.Put(3, 3)
+      val keyValue = Memory.put(3, 3)
 
       //minSegmentSize is 69.bytes. Adding the above keyValues should create a segment of total size
       // 60 + 13 - 3 (common bytes between 2 and 3) which is over the limit = 70.bytes.
@@ -111,7 +111,7 @@ class SegmentGrouperSpec extends TestBase {
 
     "add KeyValue all key-values until Group size is reached" in {
 
-      val keyValues = randomIntKeyValues(1000)
+      val keyValues = randomKeyValues(1000)
 
       implicit val groupingStrategy =
         Some(

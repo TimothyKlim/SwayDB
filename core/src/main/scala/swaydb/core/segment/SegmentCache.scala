@@ -21,20 +21,19 @@ package swaydb.core.segment
 
 import java.util.concurrent.ConcurrentSkipListMap
 import java.util.concurrent.atomic.AtomicBoolean
-
 import bloomfilter.mutable.BloomFilter
 import com.typesafe.scalalogging.LazyLogging
 import swaydb.core.data.{Persistent, _}
 import swaydb.core.queue.KeyValueLimiter
-import swaydb.core.segment.format.one.SegmentReader._
-import swaydb.core.segment.format.one.{KeyMatcher, SegmentFooter, SegmentReader}
+import swaydb.core.segment.format.a.SegmentReader._
+import swaydb.core.segment.format.a.{KeyMatcher, SegmentFooter, SegmentReader}
 import swaydb.core.util._
 import swaydb.data.segment.MaxKey
 import swaydb.data.segment.MaxKey.{Fixed, Range}
 import swaydb.data.slice.{Reader, Slice}
-
 import scala.annotation.tailrec
 import scala.util.{Failure, Success, Try}
+import swaydb.data.order.KeyOrder
 
 private[core] class SegmentCacheInitializer(id: String,
                                             maxKey: MaxKey,
@@ -46,7 +45,7 @@ private[core] class SegmentCacheInitializer(id: String,
   @volatile private var cache: SegmentCache = _
 
   @tailrec
-  final def segmentCache(implicit ordering: Ordering[Slice[Byte]],
+  final def segmentCache(implicit keyOrder: KeyOrder[Slice[Byte]],
                          keyValueLimiter: KeyValueLimiter): SegmentCache =
     if (cache != null) {
       cache
@@ -56,7 +55,7 @@ private[core] class SegmentCacheInitializer(id: String,
           id = id,
           maxKey = maxKey,
           minKey = minKey,
-          cache = new ConcurrentSkipListMap[Slice[Byte], Persistent](ordering),
+          cache = new ConcurrentSkipListMap[Slice[Byte], Persistent](keyOrder),
           unsliceKey = unsliceKey,
           getFooter = getFooter,
           createReader = createReader
@@ -73,19 +72,19 @@ private[core] class SegmentCache(id: String,
                                  cache: ConcurrentSkipListMap[Slice[Byte], Persistent],
                                  unsliceKey: Boolean,
                                  getFooter: () => Try[SegmentFooter],
-                                 createReader: () => Try[Reader])(implicit ordering: Ordering[Slice[Byte]],
+                                 createReader: () => Try[Reader])(implicit keyOrder: KeyOrder[Slice[Byte]],
                                                                   keyValueLimiter: KeyValueLimiter) extends LazyLogging {
 
-  import ordering._
+  import keyOrder._
 
   private def addToCache(keyValue: Persistent.SegmentResponse): Unit = {
-    if (unsliceKey) keyValue.unsliceKey
+    if (unsliceKey) keyValue.unsliceIndexBytes
     cache.put(keyValue.key, keyValue)
     keyValueLimiter.add(keyValue, cache)
   }
 
   private def addToCache(group: Persistent.Group): Try[Unit] = {
-    if (unsliceKey) group.unsliceKey
+    if (unsliceKey) group.unsliceIndexBytes
     keyValueLimiter.add(group, cache) map {
       _ =>
         cache.put(group.key, group)

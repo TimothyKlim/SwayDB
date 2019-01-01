@@ -24,15 +24,14 @@ import swaydb.core.TestBase
 import swaydb.core.data.KeyValue.ReadOnly
 import swaydb.core.data.Memory
 import swaydb.core.group.compression.data.KeyValueGroupingStrategyInternal
-import swaydb.core.segment.merge.KeyValueMerger
 import swaydb.core.util.Benchmark
 import swaydb.data.slice.Slice
-import swaydb.order.KeyOrder
+import swaydb.data.order.KeyOrder
 import swaydb.serializers.Default._
 import swaydb.serializers._
-
 import scala.concurrent.duration._
 import scala.util.Random
+import swaydb.core.merge.KeyValueMerger
 
 //@formatter:off
 class Higher_FromMultipleLevels_Spec0 extends Higher_FromMultipleLevels_Spec {
@@ -67,9 +66,9 @@ class Higher_FromMultipleLevels_Spec3 extends Higher_FromMultipleLevels_Spec {
 
 sealed trait Higher_FromMultipleLevels_Spec extends TestBase with MockFactory with Benchmark {
 
-  override implicit val ordering: Ordering[Slice[Byte]] = KeyOrder.default
+  override implicit val keyOrder: KeyOrder[Slice[Byte]] = KeyOrder.default
   def maxIterations: Int
-  implicit override val groupingStrategy: Option[KeyValueGroupingStrategyInternal] = randomCompressionTypeOption(maxIterations)
+  implicit override val groupingStrategy: Option[KeyValueGroupingStrategyInternal] = randomCompressionOption(maxIterations)
 
   "Higher" should {
     "empty Level" in {
@@ -107,7 +106,7 @@ sealed trait Higher_FromMultipleLevels_Spec extends TestBase with MockFactory wi
         val lowerLevelKeyValue = if (Random.nextBoolean()) randomRangeKeyValue(5, 10) else randomFixedKeyValue(5)
 
         //      val upperLevelKeyValue = Memory.Range(5, 10, Some(Value.Update(5, None)), Value.Remove(1000.seconds.fromNow))
-        //      val lowerLevelKeyValue = Memory.Update(5, None, 2099.seconds.fromNow)
+        //      val lowerLevelKeyValue = Memory.update(5, None, 2099.seconds.fromNow)
 
         //      val upperLevelKeyValue = Memory.Range(5, 10, Some(Value.Update(5, None)), Value.Remove(1000.seconds.fromNow))
         //      val lowerLevelKeyValue = Memory.Range(5, 10, Some(Value.Update(10, None)), Value.Update(None, None))
@@ -125,7 +124,7 @@ sealed trait Higher_FromMultipleLevels_Spec extends TestBase with MockFactory wi
                 //If remove hasTimeLeft and lower Level's range has Put which is also not expired, then higher should return the Put's value.
                 case (remove: Memory.Remove, put: Memory.Put) if remove.hasTimeLeft() && put.hasTimeLeft() =>
                   //expected Put will contain Remove's deadline if deadline exists else put's deadline.
-                  val expected = remove.deadline.map(put.updateDeadline) getOrElse put
+                  val expected = remove.deadline.map(deadline => put.copy(deadline = Some(deadline))) getOrElse put
                   (0 to 4) foreach (i => level.higher(i).assertGet shouldBe expected)
                   (5 to 15) foreach (i => level.higher(i).assertGetOpt shouldBe empty)
 
@@ -139,9 +138,11 @@ sealed trait Higher_FromMultipleLevels_Spec extends TestBase with MockFactory wi
                 case (update: Memory.Update, put: Memory.Put) if update.hasTimeLeft() && put.hasTimeLeft() =>
                   val expected =
                     if (update.deadline.isDefined)
-                      update.toPut()
+//                      update.toPut()
+                      ???
                     else
-                      put.deadline.map(update.toPut) getOrElse update.toPut()
+//                      put.deadline.map(update.toPut) getOrElse update.toPut()
+                    ???
 
                   (0 to 4) foreach (i => level.higher(i).assertGet shouldBe expected)
                   (5 to 15) foreach (i => level.higher(i).assertGetOpt shouldBe empty)
@@ -171,10 +172,10 @@ sealed trait Higher_FromMultipleLevels_Spec extends TestBase with MockFactory wi
         val expectedLowerValue: ReadOnly.Fixed =
           (upperLevelKeyValue, lowerLevelKeyValue) match {
             case (upperRange: Memory.Range, lowerRange: Memory.Range) =>
-              KeyValueMerger.applyValue(upperRange.rangeValue.toMemory(6), lowerRange.fromValue.getOrElse(lowerRange.rangeValue).toMemory(6), Duration.Zero).assertGet
+              KeyValueMerger(Some(6), upperRange.rangeValue, lowerRange.fromValue.getOrElse(lowerRange.rangeValue)).assertGet.toMemory(6)
 
             case (upperRange: Memory.Range, lower: Memory.Fixed) =>
-              KeyValueMerger.applyValue(upperRange.rangeValue.toMemory(6), lower, Duration.Zero).assertGet
+              KeyValueMerger(Some(6), upperRange.rangeValue, lower.toValue().get).assertGet.toMemory(6)
 
             case (_: Memory.Fixed, lowerRange: Memory.Range) =>
               toFixed(lowerRange)
@@ -248,8 +249,8 @@ sealed trait Higher_FromMultipleLevels_Spec extends TestBase with MockFactory wi
         val upperLevelKeyValue = if (Random.nextBoolean()) randomRangeKeyValue(10, 20) else randomFixedKeyValue(10)
         val lowerLevelKeyValue = if (Random.nextBoolean()) randomRangeKeyValue(5, 20) else randomFixedKeyValue(5)
 
-        //      val upperLevelKeyValue = Memory.Put(10, Some("put"), Some(0.seconds.fromNow))
-        //      val lowerLevelKeyValue = Memory.Update(5, Some("update"), Some(10.seconds.fromNow))
+        //      val upperLevelKeyValue = Memory.put(10, Some("put"), Some(0.seconds.fromNow))
+        //      val lowerLevelKeyValue = Memory.update(5, Some("update"), Some(10.seconds.fromNow))
 
         println
         println("upperLevelKeyValue: " + upperLevelKeyValue)
@@ -326,7 +327,7 @@ sealed trait Higher_FromMultipleLevels_Spec extends TestBase with MockFactory wi
         //      val upperLevelKeyValue = Memory.Range(5, 10, Some(Value.Put(None, 10000.seconds)), Value.Remove(20000.seconds.fromNow))
         //      val lowerLevelKeyValue = Memory.Range(7, 15, Some(Value.Put(7, 10000.seconds)), Value.Remove(None))
 
-        //        val upperLevelKeyValue = Memory.Remove(5, randomDeadlineOption)
+        //        val upperLevelKeyValue = Memory.remove(5, randomDeadlineOption)
         //        val lowerLevelKeyValue = Memory.Range(7, 15, Some(Value.Put(Some(7), randomDeadlineOption)), Value.Remove(randomDeadlineOption))
 
         println
@@ -338,10 +339,10 @@ sealed trait Higher_FromMultipleLevels_Spec extends TestBase with MockFactory wi
         val expectedLowerValue: ReadOnly.Fixed =
         (upperLevelKeyValue, lowerLevelKeyValue) match {
           case (upperRange: Memory.Range, lowerRange: Memory.Range) =>
-            KeyValueMerger.applyValue(upperRange.rangeValue.toMemory(7), lowerRange.fromValue.getOrElse(lowerRange.rangeValue).toMemory(7), Duration.Zero).assertGet
+            KeyValueMerger(Some(7), upperRange.rangeValue, lowerRange.fromValue.getOrElse(lowerRange.rangeValue)).assertGet.toMemory(7)
 
           case (upperRange: Memory.Range, lower: Memory.Fixed) =>
-            KeyValueMerger.applyValue(upperRange.rangeValue.toMemory(7), lower, Duration.Zero).assertGet
+            KeyValueMerger(Some(7), upperRange.rangeValue, lower.toValue().assertGet).assertGet.toMemory(7)
 
           case (_: Memory.Fixed, lowerRange: Memory.Range) =>
             toFixed(lowerRange)
@@ -418,7 +419,7 @@ sealed trait Higher_FromMultipleLevels_Spec extends TestBase with MockFactory wi
         //      val upperLevelKeyValue = Memory.Range(5, 10, Some(Value.Put(None, 10000.seconds)), Value.Remove(22000.seconds.fromNow))
         //      val lowerLevelKeyValue = Memory.Range(7, 22, Some(Value.Put(7, 10000.seconds)), Value.Remove(None))
 
-        //        val upperLevelKeyValue = Memory.Remove(5, randomDeadlineOption)
+        //        val upperLevelKeyValue = Memory.remove(5, randomDeadlineOption)
         //        val lowerLevelKeyValue = Memory.Range(7, 22, Some(Value.Put(Some(7), randomDeadlineOption)), Value.Remove(randomDeadlineOption))
 
         println

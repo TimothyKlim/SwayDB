@@ -26,7 +26,7 @@ import swaydb.data.accelerate.Accelerator
 import swaydb.data.compaction.Throttle
 import swaydb.data.slice.Slice
 import swaydb.data.util.StorageUnits._
-import swaydb.order.KeyOrder
+import swaydb.data.order.KeyOrder
 import swaydb.serializers.Default._
 import swaydb.serializers._
 
@@ -57,7 +57,7 @@ class LevelZeroGetSpec3 extends LevelZeroGetSpec {
 
 class LevelZeroGetSpec extends TestBase with MockFactory with Benchmark {
 
-  override implicit val ordering: Ordering[Slice[Byte]] = KeyOrder.default
+  override implicit val keyOrder: KeyOrder[Slice[Byte]] = KeyOrder.default
 
   "Level0" should {
 

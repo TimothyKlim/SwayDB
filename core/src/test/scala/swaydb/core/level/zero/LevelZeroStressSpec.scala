@@ -22,7 +22,7 @@ package swaydb.core.level.zero
 import swaydb.core.TestBase
 import swaydb.core.util.{Benchmark, Delay}
 import swaydb.data.slice.Slice
-import swaydb.order.KeyOrder
+import swaydb.data.order.KeyOrder
 import swaydb.serializers.Default._
 
 import scala.concurrent.Future
@@ -55,7 +55,7 @@ class LevelZeroStressSpec3 extends LevelZeroStressSpec {
 
 sealed trait LevelZeroStressSpec extends TestBase with Benchmark {
 
-  override implicit val ordering: Ordering[Slice[Byte]] = KeyOrder.default
+  override implicit val keyOrder: KeyOrder[Slice[Byte]] = KeyOrder.default
 
 //  override def deleteFiles = false
 
@@ -77,7 +77,7 @@ sealed trait LevelZeroStressSpec extends TestBase with Benchmark {
           val key = keyValue.key.read[Int]
           if (key % 100000 == 0)
             println(s"PUT. Current written KeyValue : $key")
-          zero.put(keyValue.key, keyValue.getOrFetchValue.assertGetOpt).assertGet
+          zero.put(keyValue.key, keyValue.getOrFetchValue).assertGet
       }
 
     def doGet =
@@ -86,7 +86,7 @@ sealed trait LevelZeroStressSpec extends TestBase with Benchmark {
           val key = keyValue.key.read[Int]
           if (key % 100000 == 0)
             println(s"GET. KeyValue : $key")
-          zero.get(keyValue.key).assertGet shouldBe keyValue.getOrFetchValue.assertGetOpt
+          zero.get(keyValue.key).assertGet shouldBe keyValue.getOrFetchValue
       }
 
     def readLower =
@@ -97,7 +97,7 @@ sealed trait LevelZeroStressSpec extends TestBase with Benchmark {
           val expectedLower = keyValues(index - 1)
           val (key, value) = zero.lower(keyValues(index).key).assertGet
           key shouldBe expectedLower.key
-          value shouldBe expectedLower.getOrFetchValue.assertGetOpt
+          value shouldBe expectedLower.getOrFetchValue
       }
 
     def readHigher =
@@ -108,7 +108,7 @@ sealed trait LevelZeroStressSpec extends TestBase with Benchmark {
           val expectedLower = keyValues(index + 1)
           val (key, value) = zero.higher(keyValues(index).key).assertGet
           key shouldBe expectedLower.key
-          value shouldBe expectedLower.getOrFetchValue.assertGetOpt
+          value shouldBe expectedLower.getOrFetchValue
       }
 
     //Write all keys values to make sure that data is actually there.

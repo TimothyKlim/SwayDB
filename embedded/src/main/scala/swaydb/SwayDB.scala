@@ -20,7 +20,6 @@
 package swaydb
 
 import java.nio.file.Path
-
 import com.typesafe.scalalogging.LazyLogging
 import swaydb.configs.level.{DefaultGroupingStrategy, DefaultMemoryConfig, DefaultMemoryPersistentConfig, DefaultPersistentConfig}
 import swaydb.core.CoreAPI
@@ -36,13 +35,13 @@ import swaydb.data.repairAppendix.RepairResult.OverlappingSegments
 import swaydb.data.repairAppendix._
 import swaydb.data.request
 import swaydb.data.slice.Slice
-import swaydb.order.KeyOrder
+import swaydb.data.order.{KeyOrder, TimeOrder}
 import swaydb.serializers.Serializer
-
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.{FiniteDuration, _}
 import scala.concurrent.forkjoin.ForkJoinPool
 import scala.util.{Failure, Success, Try}
+import swaydb.core.function.FunctionStore
 
 /**
   * Instance used for creating/initialising databases.
@@ -63,6 +62,9 @@ object SwayDB extends LazyLogging {
     def reportFailure(exception: Throwable): Unit =
       logger.error("Execution context failure", exception)
   }
+
+  implicit val timeOrder: TimeOrder[Slice[Byte]] = ???
+  implicit val functionStore: FunctionStore = ???
 
   /**
     * A pre-configured, 8 Leveled, persistent database where Level1 accumulates a minimum of 10 Segments before
@@ -115,7 +117,7 @@ object SwayDB extends LazyLogging {
                        lastLevelGroupingStrategy: Option[KeyValueGroupingStrategy] = Some(DefaultGroupingStrategy()),
                        acceleration: Level0Meter => Accelerator = Accelerator.noBrakes())(implicit keySerializer: Serializer[K],
                                                                                           valueSerializer: Serializer[V],
-                                                                                          ordering: Ordering[Slice[Byte]] = KeyOrder.default,
+                                                                                          keyOrder: KeyOrder[Slice[Byte]] = KeyOrder.default,
                                                                                           ec: ExecutionContext = defaultExecutionContext): Try[Map[K, V]] =
     CoreAPI(
       config = DefaultPersistentConfig(
@@ -163,7 +165,7 @@ object SwayDB extends LazyLogging {
                        compressDuplicateValues: Boolean = true,
                        lastLevelGroupingStrategy: Option[KeyValueGroupingStrategy] = Some(DefaultGroupingStrategy()),
                        acceleration: Level0Meter => Accelerator = Accelerator.noBrakes())(implicit serializer: Serializer[T],
-                                                                                          ordering: Ordering[Slice[Byte]] = KeyOrder.default,
+                                                                                          keyOrder: KeyOrder[Slice[Byte]] = KeyOrder.default,
                                                                                           ec: ExecutionContext = defaultExecutionContext): Try[Set[T]] = {
     CoreAPI(
       config = DefaultPersistentConfig(
@@ -219,7 +221,7 @@ object SwayDB extends LazyLogging {
                    groupingStrategy: Option[KeyValueGroupingStrategy] = None,
                    acceleration: Level0Meter => Accelerator = Accelerator.noBrakes())(implicit keySerializer: Serializer[K],
                                                                                       valueSerializer: Serializer[V],
-                                                                                      ordering: Ordering[Slice[Byte]] = KeyOrder.default,
+                                                                                      keyOrder: KeyOrder[Slice[Byte]] = KeyOrder.default,
                                                                                       ec: ExecutionContext = defaultExecutionContext): Try[Map[K, V]] =
     CoreAPI(
       config = DefaultMemoryConfig(
@@ -253,7 +255,7 @@ object SwayDB extends LazyLogging {
                    compressDuplicateValues: Boolean = false,
                    groupingStrategy: Option[KeyValueGroupingStrategy] = None,
                    acceleration: Level0Meter => Accelerator = Accelerator.noBrakes())(implicit serializer: Serializer[T],
-                                                                                      ordering: Ordering[Slice[Byte]] = KeyOrder.default,
+                                                                                      keyOrder: KeyOrder[Slice[Byte]] = KeyOrder.default,
                                                                                       ec: ExecutionContext = defaultExecutionContext): Try[Set[T]] =
     CoreAPI(
       config = DefaultMemoryConfig(
@@ -325,7 +327,7 @@ object SwayDB extends LazyLogging {
                              groupingStrategy: Option[KeyValueGroupingStrategy] = Some(DefaultGroupingStrategy()),
                              acceleration: Level0Meter => Accelerator = Accelerator.noBrakes())(implicit keySerializer: Serializer[K],
                                                                                                 valueSerializer: Serializer[V],
-                                                                                                ordering: Ordering[Slice[Byte]] = KeyOrder.default,
+                                                                                                keyOrder: KeyOrder[Slice[Byte]] = KeyOrder.default,
                                                                                                 ec: ExecutionContext = defaultExecutionContext): Try[Map[K, V]] =
     CoreAPI(
       config =
@@ -377,7 +379,7 @@ object SwayDB extends LazyLogging {
                              compressDuplicateValues: Boolean = true,
                              groupingStrategy: Option[KeyValueGroupingStrategy] = Some(DefaultGroupingStrategy()),
                              acceleration: Level0Meter => Accelerator = Accelerator.noBrakes())(implicit serializer: Serializer[T],
-                                                                                                ordering: Ordering[Slice[Byte]] = KeyOrder.default,
+                                                                                                keyOrder: KeyOrder[Slice[Byte]] = KeyOrder.default,
                                                                                                 ec: ExecutionContext = defaultExecutionContext): Try[Set[T]] =
     CoreAPI(
       config =
@@ -435,7 +437,7 @@ object SwayDB extends LazyLogging {
                   cacheCheckDelay: FiniteDuration,
                   segmentsOpenCheckDelay: FiniteDuration)(implicit keySerializer: Serializer[K],
                                                           valueSerializer: Serializer[V],
-                                                          ordering: Ordering[Slice[Byte]],
+                                                          keyOrder: KeyOrder[Slice[Byte]],
                                                           ec: ExecutionContext): Try[Map[K, V]] =
     CoreAPI(
       config = config,
@@ -453,7 +455,7 @@ object SwayDB extends LazyLogging {
                cacheSize: Int,
                cacheCheckDelay: FiniteDuration,
                segmentsOpenCheckDelay: FiniteDuration)(implicit serializer: Serializer[T],
-                                                       ordering: Ordering[Slice[Byte]],
+                                                       keyOrder: KeyOrder[Slice[Byte]],
                                                        ec: ExecutionContext): Try[Set[T]] =
     CoreAPI(
       config = config,
@@ -470,7 +472,7 @@ object SwayDB extends LazyLogging {
                   cacheSize: Int,
                   cacheCheckDelay: FiniteDuration)(implicit keySerializer: Serializer[K],
                                                    valueSerializer: Serializer[V],
-                                                   ordering: Ordering[Slice[Byte]],
+                                                   keyOrder: KeyOrder[Slice[Byte]],
                                                    ec: ExecutionContext): Try[Map[K, V]] =
     CoreAPI(
       config = config,
@@ -486,7 +488,7 @@ object SwayDB extends LazyLogging {
   def apply[T](config: SwayDBMemoryConfig,
                cacheSize: Int,
                cacheCheckDelay: FiniteDuration)(implicit serializer: Serializer[T],
-                                                ordering: Ordering[Slice[Byte]],
+                                                keyOrder: KeyOrder[Slice[Byte]],
                                                 ec: ExecutionContext): Try[Set[T]] =
     CoreAPI(
       config = config,
@@ -504,7 +506,7 @@ object SwayDB extends LazyLogging {
     */
   def repairAppendix[K](levelPath: Path,
                         repairStrategy: AppendixRepairStrategy)(implicit serializer: Serializer[K],
-                                                                ordering: Ordering[Slice[Byte]] = KeyOrder.default,
+                                                                keyOrder: KeyOrder[Slice[Byte]] = KeyOrder.default,
                                                                 ec: ExecutionContext = defaultExecutionContext): Try[RepairResult[K]] =
   //convert to typed result.
     AppendixRepairer(levelPath, repairStrategy) match {
@@ -586,21 +588,21 @@ private[swaydb] class SwayDB(api: CoreAPI) {
         val nextEntry =
           batchEntry match {
             case request.Batch.Put(key, value, expire) =>
-              MapEntry.Put[Slice[Byte], Memory.Put](key, Memory.Put(key, value, expire))(LevelZeroMapEntryWriter.Level0PutWriter)
+              MapEntry.Put[Slice[Byte], Memory.Put](key, Memory.Put(key, value, expire, ???))(LevelZeroMapEntryWriter.Level0PutWriter)
 
             case request.Batch.Remove(key, expire) =>
-              MapEntry.Put[Slice[Byte], Memory.Remove](key, Memory.Remove(key, expire))(LevelZeroMapEntryWriter.Level0RemoveWriter)
+              MapEntry.Put[Slice[Byte], Memory.Remove](key, Memory.Remove(key, expire, ???))(LevelZeroMapEntryWriter.Level0RemoveWriter)
 
             case request.Batch.Update(key, value) =>
-              MapEntry.Put[Slice[Byte], Memory.Update](key, Memory.Update(key, value))(LevelZeroMapEntryWriter.Level0UpdateWriter)
+              MapEntry.Put[Slice[Byte], Memory.Update](key, Memory.Update(key, value, None, ???))(LevelZeroMapEntryWriter.Level0UpdateWriter)
 
             case request.Batch.RemoveRange(fromKey, toKey, expire) =>
               (MapEntry.Put[Slice[Byte], Memory.Range](fromKey, Memory.Range(fromKey, toKey, None, Value.Remove(expire)))(LevelZeroMapEntryWriter.Level0RangeWriter): MapEntry[Slice[Byte], Memory.SegmentResponse]) ++
-                MapEntry.Put[Slice[Byte], Memory.Remove](toKey, Memory.Remove(toKey, expire))(LevelZeroMapEntryWriter.Level0RemoveWriter)
+                MapEntry.Put[Slice[Byte], Memory.Remove](toKey, Memory.Remove(toKey, expire, ???))(LevelZeroMapEntryWriter.Level0RemoveWriter)
 
             case request.Batch.UpdateRange(fromKey, toKey, value) =>
               (MapEntry.Put[Slice[Byte], Memory.Range](fromKey, Memory.Range(fromKey, toKey, None, Value.Update(value, None)))(LevelZeroMapEntryWriter.Level0RangeWriter): MapEntry[Slice[Byte], Memory.SegmentResponse]) ++
-                MapEntry.Put[Slice[Byte], Memory.Update](toKey, Memory.Update(toKey))(LevelZeroMapEntryWriter.Level0UpdateWriter)
+                MapEntry.Put[Slice[Byte], Memory.Update](toKey, Memory.Update(toKey, None, None, ???))(LevelZeroMapEntryWriter.Level0UpdateWriter)
           }
         Some(mapEntry.map(_ ++ nextEntry) getOrElse nextEntry)
     } map {

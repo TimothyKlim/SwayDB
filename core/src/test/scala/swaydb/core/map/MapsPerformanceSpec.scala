@@ -28,12 +28,12 @@ import swaydb.data.accelerate.Accelerator
 import swaydb.data.config.RecoveryMode
 import swaydb.data.slice.Slice
 import swaydb.data.util.StorageUnits._
-import swaydb.order.KeyOrder
+import swaydb.data.order.KeyOrder
 import scala.concurrent.duration._
 
 class MapsPerformanceSpec extends TestBase with Benchmark {
 
-  override implicit val ordering: Ordering[Slice[Byte]] = KeyOrder.default
+  override implicit val keyOrder: KeyOrder[Slice[Byte]] = KeyOrder.default
 
   import swaydb.core.map.serializer.LevelZeroMapEntryReader._
   import swaydb.core.map.serializer.LevelZeroMapEntryWriter._
@@ -42,13 +42,13 @@ class MapsPerformanceSpec extends TestBase with Benchmark {
   "Maps" should {
     "write key values" in {
       //      val keyValues = randomIntKeyValues(2000000)
-      val keyValues = randomIntKeyValues(2000)
+      val keyValues = randomKeyValues(2000)
 
       def testWrite(maps: Maps[Slice[Byte], Memory.SegmentResponse]) =
         keyValues foreach {
           keyValue =>
             maps.write {
-              MapEntry.Put[Slice[Byte], Memory.Put](keyValue.key, Memory.Put(keyValue.key, keyValue.getOrFetchValue.assertGetOpt))(Level0PutWriter)
+              MapEntry.Put[Slice[Byte], Memory.Put](keyValue.key, Memory.put(keyValue.key, keyValue.getOrFetchValue))(Level0PutWriter)
             }.assertGet
         }
 

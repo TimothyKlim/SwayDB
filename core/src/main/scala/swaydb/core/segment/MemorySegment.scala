@@ -22,7 +22,6 @@ package swaydb.core.segment
 import java.nio.file.{NoSuchFileException, Path}
 import java.util.concurrent.ConcurrentSkipListMap
 import java.util.function.Consumer
-
 import bloomfilter.mutable.BloomFilter
 import com.typesafe.scalalogging.LazyLogging
 import swaydb.core.data.Memory.{Group, SegmentResponse}
@@ -35,10 +34,11 @@ import swaydb.core.util.TryUtil._
 import swaydb.core.util._
 import swaydb.data.segment.MaxKey
 import swaydb.data.slice.Slice
-
 import scala.concurrent.duration.{Deadline, FiniteDuration}
 import scala.util.{Failure, Success, Try}
 import scala.collection.JavaConverters._
+import swaydb.core.function.FunctionStore
+import swaydb.data.order.{KeyOrder, TimeOrder}
 
 private[segment] case class MemorySegment(path: Path,
                                           minKey: Slice[Byte],
@@ -50,13 +50,15 @@ private[segment] case class MemorySegment(path: Path,
                                           _hasGroup: Boolean,
                                           private[segment] val cache: ConcurrentSkipListMap[Slice[Byte], Memory],
                                           bloomFilter: Option[BloomFilter[Slice[Byte]]],
-                                          nearestExpiryDeadline: Option[Deadline])(implicit ordering: Ordering[Slice[Byte]],
+                                          nearestExpiryDeadline: Option[Deadline])(implicit keyOrder: KeyOrder[Slice[Byte]],
+                                                                                   timeOrder: TimeOrder[Slice[Byte]],
+                                                                                   functionStore: FunctionStore,
                                                                                    groupingStrategy: Option[KeyValueGroupingStrategyInternal],
                                                                                    keyValueLimiter: KeyValueLimiter) extends Segment with LazyLogging {
 
   @volatile private var deleted = false
 
-  import ordering._
+  import keyOrder._
 
   /**
     * Adds the new Group to the queue only if it is not already in the Queue.
@@ -92,7 +94,6 @@ private[segment] case class MemorySegment(path: Path,
             forInMemory = true,
             isLastLevel = removeDeletes,
             bloomFilterFalsePositiveRate = bloomFilterFalsePositiveRate,
-            hasTimeLeftAtLeast = hasTimeLeftAtLeast,
             compressDuplicateValues = compressDuplicateValues
           ) flatMap {
             splits =>
@@ -206,6 +207,7 @@ private[segment] case class MemorySegment(path: Path,
                     group.segmentCache.get(key) flatMap {
                       case Some(persistent) =>
                         persistent.toMemoryResponseOption()
+
                       case None =>
                         TryUtil.successNone
                     }

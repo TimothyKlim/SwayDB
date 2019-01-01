@@ -19,7 +19,7 @@
 
 package swaydb.core.data
 
-import swaydb.core.segment.format.one.SegmentWriter
+import swaydb.core.segment.format.a.SegmentWriter
 import swaydb.core.util.{BloomFilterUtil, Bytes}
 import swaydb.data.slice.Slice
 import swaydb.data.util.ByteSizeOf

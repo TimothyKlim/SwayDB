@@ -19,18 +19,26 @@
 
 package swaydb.core
 
+import java.util.concurrent.atomic.AtomicLong
+import scala.concurrent.duration._
+import scala.util.Random
 import swaydb.compression.CompressionInternal
 import swaydb.core.data.Value.{FromValue, RangeValue}
-import swaydb.core.data.{Memory, _}
+import swaydb.core.data._
+import swaydb.core.function.FunctionStore
 import swaydb.core.map.serializer.RangeValueSerializers._
+import swaydb.core.util.UUIDUtil
 import swaydb.data.slice.Slice
 import swaydb.serializers.Default._
 import swaydb.serializers._
 
-import scala.concurrent.duration._
-import scala.util.Random
-
 trait TestData extends TryAssert {
+  /**
+    * Sequential time bytes generator.
+    */
+  private val timeCount = new AtomicLong(Long.MaxValue / 2)
+
+  implicit def functionStore: FunctionStore
 
   def randomStringOption: Option[Slice[Byte]] =
     if (Random.nextBoolean())
@@ -44,6 +52,31 @@ trait TestData extends TryAssert {
     else
       None
 
+  def randomNextTimeOption: Option[Time] =
+    if (Random.nextBoolean())
+      Some(nextTime)
+    else
+      None
+
+  def randomPreviousTimeOption: Option[Time] =
+    if (Random.nextBoolean())
+      Some(previousTime)
+    else
+      None
+
+  /**
+    * Random return one of the older times used.
+    * Randomly decrement by a random number (minimum decremented by 1)
+    */
+  def previousTime: Time =
+    (1 to (randomIntMax(4) + 1)) map {
+      _ =>
+        Time(timeCount.decrementAndGet())
+    } head
+
+  def nextTime: Time =
+    Time(timeCount.incrementAndGet())
+
   def randomDeadline(): Deadline =
     if (Random.nextBoolean())
       randomIntMax(30).seconds.fromNow
@@ -52,20 +85,82 @@ trait TestData extends TryAssert {
 
   def randomPutKeyValue(key: Slice[Byte],
                         value: Option[Slice[Byte]] = randomStringOption): Memory.Fixed =
-    Memory.Put(key, value, randomDeadlineOption)
+    Memory.Put(key, value, randomDeadlineOption, ???)
 
   def randomRemoveKeyValue(key: Slice[Byte],
                            deadline: Option[Deadline] = randomDeadlineOption): Memory.Remove =
-    Memory.Remove(key, deadline)
+    Memory.Remove(key, deadline, None)
+
+  def randomFunction() =
+    if (Random.nextBoolean())
+      SwayFunction.Key {
+        _ =>
+          if (Random.nextBoolean())
+            FunctionOutput.Remove
+          else if (Random.nextBoolean())
+            FunctionOutput.Expire(randomDeadline())
+          else
+            FunctionOutput.Update(randomStringOption, randomDeadlineOption)
+      }
+    else
+      SwayFunction.KeyValue {
+        (_, oldValue) =>
+          if (Random.nextBoolean())
+            FunctionOutput.Remove
+          else if (Random.nextBoolean())
+            FunctionOutput.Expire(randomDeadline())
+          else
+            FunctionOutput.Update(eitherOne(oldValue, randomStringOption), randomDeadlineOption)
+      }
+
+  def randomFunctionId: Slice[Byte] = {
+    val functionId: Slice[Byte] = UUIDUtil.randomIdNoHyphen()
+    functionStore.put(functionId, randomFunction())
+    functionId
+  }
+
+  def randomApply(value: Option[Slice[Byte]] = randomStringOption,
+                  deadline: Option[Deadline] = randomDeadlineOption,
+                  time: Option[Time] = randomNextTimeOption) =
+    if (Random.nextBoolean())
+      Value.Remove(deadline, time)
+    else if (Random.nextBoolean())
+      Value.Update(value, deadline, time)
+    else
+      Value.Function(randomFunctionId, time)
+
+  def randomApplies(max: Int = 5,
+                    value: Option[Slice[Byte]] = randomStringOption,
+                    deadline: Option[Deadline] = randomDeadlineOption): Slice[Value.Apply] =
+    Slice {
+      (1 to (Random.nextInt(max) max 1)).map {
+        _ =>
+          randomApply(value, deadline, Some(previousTime))
+      } toArray
+    }
+
+  def randomFixedKeyValueNoPendingApply(key: Slice[Byte],
+                                        value: Option[Slice[Byte]] = randomStringOption,
+                                        deadline: Option[Deadline] = randomDeadlineOption,
+                                        time: Option[Time] = randomNextTimeOption): Memory.Fixed =
+    if (Random.nextBoolean())
+      Memory.Put(key, value, deadline, time)
+    else if (Random.nextBoolean())
+      Memory.Remove(key, deadline, time)
+    else
+      Memory.Update(key, value, deadline, time)
 
   def randomFixedKeyValue(key: Slice[Byte],
-                          value: Option[Slice[Byte]] = randomStringOption): Memory.Fixed =
+                          value: Option[Slice[Byte]] = randomStringOption,
+                          deadline: Option[Deadline] = randomDeadlineOption,
+                          time: Option[Time] = randomNextTimeOption,
+                          includePendingApply: Boolean = true): Memory.Fixed =
     if (Random.nextBoolean())
-      Memory.Put(key, value, randomDeadlineOption)
-    else if (Random.nextBoolean())
-      Memory.Remove(key, randomDeadlineOption)
+      randomFixedKeyValueNoPendingApply(key, value, deadline, time)
+    else if (includePendingApply && Random.nextBoolean())
+      Memory.PendingApply(key, randomApplies(10, value, deadline))
     else
-      Memory.Update(key, value, randomDeadlineOption)
+      randomFixedKeyValueNoPendingApply(key, value, deadline, time)
 
   def randomCompression(minCompressionPercentage: Double = Double.MinValue): CompressionInternal =
     CompressionInternal.random(minCompressionPercentage = minCompressionPercentage)
@@ -96,19 +191,21 @@ trait TestData extends TryAssert {
 
   def randomFromValue(): Value.FromValue =
     if (Random.nextBoolean())
-      Value.Put(randomStringOption, randomDeadlineOption)
-    else if (Random.nextBoolean())
-      Value.Remove(randomDeadlineOption)
+      Value.Put(randomStringOption, randomDeadlineOption, randomNextTimeOption)
     else
-      Value.Update(randomStringOption, randomDeadlineOption)
+      randomRangeValue()
 
   def randomRangeValue(): Value.RangeValue =
     if (Random.nextBoolean())
-      Value.Remove(randomDeadlineOption)
+      Value.Remove(randomDeadlineOption, randomNextTimeOption)
+    else if (Random.nextBoolean())
+      Value.Function(randomFunctionId, randomNextTimeOption)
+    else if (Random.nextBoolean())
+      Value.PendingApply(randomApplies())
     else
-      Value.Update(randomStringOption, randomDeadlineOption)
+      Value.Update(randomStringOption, randomDeadlineOption, randomNextTimeOption)
 
-  def randomCharacters(size: Int = 10) = Random.alphanumeric.take(size).mkString
+  def randomCharacters(size: Int = 10) = Random.alphanumeric.take(size max 1).mkString
 
   def randomBytes(size: Int = 10) = Array.fill(size)(randomByte())
 
@@ -155,7 +252,7 @@ trait TestData extends TryAssert {
                                addRandomRanges: Boolean = false,
                                addRandomRemoveDeadlines: Boolean = false,
                                addRandomPutDeadlines: Boolean = false): Slice[KeyValue.WriteOnly] =
-    randomIntKeyValues(
+    randomKeyValues(
       count = count,
       startId = startId,
       valueSize = Some(valueSize),
@@ -174,8 +271,9 @@ trait TestData extends TryAssert {
                              addRandomRanges: Boolean = Random.nextBoolean(),
                              addRandomRemoveDeadlines: Boolean = Random.nextBoolean(),
                              addRandomPutDeadlines: Boolean = Random.nextBoolean(),
-                             addRandomGroups: Boolean = Random.nextBoolean()): Slice[KeyValue.WriteOnly] =
-    randomIntKeyValues(
+                             addRandomGroups: Boolean = Random.nextBoolean(),
+                             addRandomTimes: Boolean = Random.nextBoolean()): Slice[KeyValue.WriteOnly] =
+    randomKeyValues(
       count = count,
       startId = startId,
       valueSize = Some(valueSize),
@@ -184,14 +282,15 @@ trait TestData extends TryAssert {
       addRandomRanges = addRandomRanges,
       addRandomRemoveDeadlines = addRandomRemoveDeadlines,
       addRandomPutDeadlines = addRandomPutDeadlines,
-      addRandomGroups = addRandomGroups
+      addRandomGroups = addRandomGroups,
+      addRandomTimes = addRandomTimes
     )
 
   def groupsOnly(count: Int = 5,
                  startId: Option[Int] = None,
                  valueSize: Int = 50,
                  nonValue: Boolean = false): Slice[KeyValue.WriteOnly] =
-    randomIntKeyValues(
+    randomKeyValues(
       count = count,
       startId = startId,
       valueSize = Some(valueSize),
@@ -199,15 +298,16 @@ trait TestData extends TryAssert {
       addRandomGroups = true
     )
 
-  def randomIntKeyValues(count: Int = 20,
-                         startId: Option[Int] = None,
-                         valueSize: Option[Int] = None,
-                         nonValue: Boolean = false,
-                         addRandomRemoves: Boolean = false,
-                         addRandomRemoveDeadlines: Boolean = false,
-                         addRandomPutDeadlines: Boolean = false,
-                         addRandomRanges: Boolean = false,
-                         addRandomGroups: Boolean = false): Slice[KeyValue.WriteOnly] = {
+  def randomKeyValues(count: Int = 20,
+                      startId: Option[Int] = None,
+                      valueSize: Option[Int] = None,
+                      nonValue: Boolean = false,
+                      addRandomRemoves: Boolean = false,
+                      addRandomRemoveDeadlines: Boolean = false,
+                      addRandomPutDeadlines: Boolean = false,
+                      addRandomRanges: Boolean = false,
+                      addRandomGroups: Boolean = false,
+                      addRandomTimes: Boolean = false): Slice[KeyValue.WriteOnly] = {
     //    println(
     //      s"""
     //        |nonValue : $nonValue
@@ -230,19 +330,35 @@ trait TestData extends TryAssert {
           key,
           previous = slice.lastOption,
           deadline = if (addRandomPutDeadlines && Random.nextBoolean()) Some(10.seconds.fromNow) else None,
-          compressDuplicateValues = true
+          compressDuplicateValues = true,
+          value = None,
+          time = None,
+          falsePositiveRate = 0.1
         )
         key = key + 1
       } else if ((addRandomRemoves || addRandomRanges || addRandomGroups) && Random.nextBoolean()) {
         if (addRandomRemoves) {
-          slice add Transient.Remove(key, 0.1, slice.lastOption, deadline = if (addRandomRemoveDeadlines && Random.nextBoolean()) Some(10.seconds.fromNow) else None)
+          slice add Transient.Remove(
+            key = key: Slice[Byte],
+            falsePositiveRate = 0.1,
+            previous = slice.lastOption,
+            deadline = if (addRandomRemoveDeadlines && Random.nextBoolean()) Some(10.seconds.fromNow) else None,
+            time = if (addRandomTimes) randomNextTimeOption else None
+          )
 
           key = key + 1
         }
         if (addRandomRanges) {
           //          val value: Slice[Byte] = valueSize.map(size => Random.nextString(size): Slice[Byte]).getOrElse(randomInt(): Slice[Byte])
           val toKey = key + 10
-          slice add Transient.Range[FromValue, RangeValue](key, toKey, randomFromValueOption(), randomRangeValue(), previous = slice.lastOption, falsePositiveRate = 0.1)
+          slice add Transient.Range[FromValue, RangeValue](
+            fromKey = key,
+            toKey = toKey,
+            fromValue = randomFromValueOption(),
+            rangeValue = randomRangeValue(),
+            previous = slice.lastOption,
+            falsePositiveRate = 0.1
+          )
           //randomly skip the Range's toKey for the next key.
           if (Random.nextBoolean())
             key = toKey
@@ -252,7 +368,7 @@ trait TestData extends TryAssert {
         if (addRandomGroups) {
           //create a Random group with the inner key-values the same as count of this group.
           val groupKeyValues =
-            randomIntKeyValues(
+            randomKeyValues(
               count = randomIntMax((count max 10) min 50),
               startId = Some(key),
               valueSize = valueSize,
@@ -261,6 +377,7 @@ trait TestData extends TryAssert {
               addRandomRemoveDeadlines = addRandomRemoveDeadlines,
               addRandomPutDeadlines = addRandomPutDeadlines,
               addRandomRanges = addRandomRanges,
+              addRandomTimes = addRandomTimes,
               addRandomGroups = false //do not create more inner groups.
             )
 
@@ -275,11 +392,13 @@ trait TestData extends TryAssert {
       } else {
         //        val value: Slice[Byte] = valueSize.map(size => Random.nextString(size): Slice[Byte]).getOrElse(randomInt(): Slice[Byte])
         slice add Transient.Put(
-          key,
-          value = key,
-          previous = slice.lastOption,
+          key = key: Slice[Byte],
+          value = Some(key),
           falsePositiveRate = 0.1,
-          compressDuplicateValues = true
+          previous = slice.lastOption,
+          compressDuplicateValues = true,
+          deadline = if (addRandomPutDeadlines && Random.nextBoolean()) Some(10.seconds.fromNow) else None,
+          time = if (addRandomTimes) randomNextTimeOption else None
         )
         key = key + 1
       }
@@ -289,7 +408,7 @@ trait TestData extends TryAssert {
 
   def randomIntKeys(count: Int = 20,
                     startId: Option[Int] = None): Slice[KeyValue.WriteOnly] =
-    randomIntKeyValues(count = count, startId = startId, nonValue = true)
+    randomKeyValues(count = count, startId = startId, nonValue = true)
 
   def randomGroup(keyValues: Slice[KeyValue.WriteOnly] = randomizedIntKeyValues(),
                   keyCompression: CompressionInternal = randomCompression(),
@@ -304,6 +423,328 @@ trait TestData extends TryAssert {
       previous = previous
     ).assertGet
 
-}
+  implicit class MemoryImplicits(memory: Memory.type) {
 
-object TestData extends TestData
+    /**
+      * Memory.Put
+      */
+    def put(key: Slice[Byte],
+            value: Slice[Byte]): Memory.Put =
+      Memory.Put(key, Some(value), None, None)
+
+    def put(key: Slice[Byte],
+            value: Slice[Byte],
+            removeAt: Deadline): Memory.Put =
+      Memory.Put(key, Some(value), Some(removeAt), None)
+
+    def put(key: Slice[Byte],
+            value: Option[Slice[Byte]],
+            removeAt: Deadline): Memory.Put =
+      Memory.Put(key, value, Some(removeAt), None)
+
+    def put(key: Slice[Byte],
+            value: Slice[Byte],
+            removeAt: Option[Deadline]): Memory.Put =
+      Memory.Put(key, Some(value), removeAt, None)
+
+    def put(key: Slice[Byte],
+            value: Option[Slice[Byte]],
+            deadline: Option[Deadline]): Memory.Put =
+      Memory.Put(key, value, deadline, None)
+
+    def put(key: Slice[Byte],
+            value: Slice[Byte],
+            removeAfter: FiniteDuration): Memory.Put =
+      Memory.Put(key, Some(value), Some(removeAfter.fromNow), None)
+
+    def put(key: Slice[Byte],
+            value: Option[Slice[Byte]]): Memory.Put =
+      Memory.Put(key, value, None, None)
+
+    def put(key: Slice[Byte]): Memory.Put =
+      Memory.Put(key, None, None, None)
+
+    def put(key: Slice[Byte],
+            value: Option[Slice[Byte]],
+            deadline: Option[Deadline],
+            time: Option[Time]): Memory.Put =
+      Memory.Put(key, value, deadline, time)
+
+    /**
+      * Memory.Update
+      */
+    def update(key: Slice[Byte],
+               value: Slice[Byte]): Memory.Update =
+      Memory.Update(key, Some(value), None, None)
+
+    def update(key: Slice[Byte],
+               value: Slice[Byte],
+               removeAt: Deadline): Memory.Update =
+      Memory.Update(key, Some(value), Some(removeAt), None)
+
+    def update(key: Slice[Byte],
+               value: Option[Slice[Byte]],
+               removeAt: Deadline): Memory.Update =
+      Memory.Update(key, value, Some(removeAt), None)
+
+    def update(key: Slice[Byte],
+               value: Slice[Byte],
+               removeAt: Option[Deadline]): Memory.Update =
+      Memory.Update(key, Some(value), removeAt, None)
+
+    def update(key: Slice[Byte],
+               value: Option[Slice[Byte]],
+               deadline: Option[Deadline]): Memory.Update =
+      Memory.Update(key, value, deadline, None)
+
+    def update(key: Slice[Byte],
+               value: Slice[Byte],
+               removeAfter: FiniteDuration): Memory.Update =
+      Memory.Update(key, Some(value), Some(removeAfter.fromNow), None)
+
+    def update(key: Slice[Byte],
+               value: Option[Slice[Byte]]): Memory.Update =
+      Memory.Update(key, value, None, None)
+
+    def update(key: Slice[Byte]): Memory.Update =
+      Memory.Update(key, None, None, None)
+
+    def update(key: Slice[Byte],
+               value: Option[Slice[Byte]],
+               deadline: Option[Deadline],
+               time: Option[Time]): Memory.Update =
+      Memory.Update(key, value, deadline, time)
+
+    /**
+      * Memory.Remove
+      */
+
+    def remove(key: Slice[Byte]): Memory.Remove =
+      Memory.Remove(key, None, None)
+
+    def remove(key: Slice[Byte], deadline: Deadline): Memory.Remove =
+      Memory.Remove(key, Some(deadline), None)
+
+    def remove(key: Slice[Byte], deadline: FiniteDuration): Memory.Remove =
+      Memory.Remove(key, Some(deadline.fromNow), None)
+
+    def remove(key: Slice[Byte],
+               deadline: Option[Deadline]): Memory.Remove =
+      Memory.Remove(key, deadline, None)
+
+    def remove(key: Slice[Byte],
+               deadline: Option[Deadline],
+               time: Option[Time]): Memory.Remove =
+      Memory.Remove(key, deadline, time)
+  }
+
+  implicit class TransientImplicits(transient: Transient.type) {
+
+    /**
+      * Transient.Remove
+      *
+      * @param key
+      * @return
+      */
+    def remove(key: Slice[Byte]): Transient.Remove =
+      Transient.Remove(
+        key = key,
+        falsePositiveRate = 0.1,
+        time = None,
+        previous = None,
+        deadline = None
+      )
+
+    def remove(key: Slice[Byte],
+               removeAfter: FiniteDuration,
+               falsePositiveRate: Double): Transient.Remove =
+      Transient.Remove(
+        key = key,
+        falsePositiveRate = falsePositiveRate,
+        previous = None,
+        deadline = Some(removeAfter.fromNow),
+        time = None
+      )
+
+    def remove(key: Slice[Byte],
+               falsePositiveRate: Double): Transient.Remove =
+      Transient.Remove(
+        key = key,
+        falsePositiveRate = falsePositiveRate,
+        previous = None,
+        deadline = None,
+        time = None
+      )
+
+    def remove(key: Slice[Byte],
+               falsePositiveRate: Double,
+               previous: Option[KeyValue.WriteOnly]): Transient.Remove =
+      Transient.Remove(
+        key = key,
+        falsePositiveRate = falsePositiveRate,
+        previous = previous,
+        deadline = None,
+        time = None
+      )
+
+    def remove(key: Slice[Byte],
+               falsePositiveRate: Double,
+               previous: Option[KeyValue.WriteOnly],
+               deadline: Option[Deadline]): Transient.Remove =
+      Transient.Remove(
+        key = key,
+        deadline = deadline,
+        previous = previous,
+        falsePositiveRate = falsePositiveRate,
+        time = None
+      )
+
+    def put(key: Slice[Byte],
+            value: Option[Slice[Byte]],
+            falsePositiveRate: Double,
+            previousMayBe: Option[KeyValue.WriteOnly]): Transient.Put =
+      Transient.Put(
+        key = key,
+        value = value,
+        deadline = None,
+        time = None,
+        previous = previousMayBe,
+        falsePositiveRate = falsePositiveRate,
+        compressDuplicateValues = true
+      )
+
+    def put(key: Slice[Byte],
+            value: Option[Slice[Byte]],
+            falsePositiveRate: Double,
+            previousMayBe: Option[KeyValue.WriteOnly],
+            deadline: Option[Deadline],
+            compressDuplicateValues: Boolean): Transient.Put =
+      Transient.Put(
+        key = key,
+        value = value,
+        deadline = deadline,
+        previous = previousMayBe,
+        falsePositiveRate = falsePositiveRate,
+        time = None,
+        compressDuplicateValues = compressDuplicateValues
+      )
+
+    def put(key: Slice[Byte]): Transient.Put =
+      Transient.Put(
+        key = key,
+        value = None,
+        deadline = None,
+        previous = None,
+        falsePositiveRate = 0.1,
+        time = None,
+        compressDuplicateValues = true
+      )
+
+    def put(key: Slice[Byte],
+            value: Slice[Byte]): Transient.Put =
+      Transient.Put(
+        key = key,
+        value = Some(value),
+        deadline = None,
+        previous = None,
+        time = None,
+        falsePositiveRate = 0.1,
+        compressDuplicateValues = true
+      )
+
+    def put(key: Slice[Byte],
+            value: Slice[Byte],
+            removeAfter: FiniteDuration): Transient.Put =
+      Transient.Put(
+        key = key,
+        value = Some(value),
+        deadline = Some(removeAfter.fromNow),
+        previous = None,
+        falsePositiveRate = 0.1,
+        time = None,
+        compressDuplicateValues = true
+      )
+
+    def put(key: Slice[Byte],
+            value: Slice[Byte],
+            deadline: Deadline): Transient.Put =
+      Transient.Put(
+        key = key,
+        value = Some(value),
+        deadline = Some(deadline),
+        previous = None,
+        falsePositiveRate = 0.1,
+        time = None,
+        compressDuplicateValues = true
+      )
+
+    def put(key: Slice[Byte],
+            removeAfter: FiniteDuration): Transient.Put =
+      Transient.Put(
+        key = key,
+        value = None,
+        deadline = Some(removeAfter.fromNow),
+        previous = None,
+        falsePositiveRate = 0.1,
+        time = None,
+        compressDuplicateValues = true
+      )
+
+    def put(key: Slice[Byte],
+            value: Slice[Byte],
+            removeAfter: Option[FiniteDuration]): Transient.Put =
+      Transient.Put(
+        key = key,
+        value = Some(value),
+        deadline = removeAfter.map(_.fromNow),
+        previous = None,
+        falsePositiveRate = 0.1,
+        time = None,
+        compressDuplicateValues = true
+      )
+
+    def put(key: Slice[Byte],
+            value: Slice[Byte],
+            falsePositiveRate: Double): Transient.Put =
+      Transient.Put(
+        key = key,
+        value = Some(value),
+        deadline = None,
+        previous = None,
+        falsePositiveRate = falsePositiveRate,
+        time = None,
+        compressDuplicateValues = true
+      )
+
+    def put(key: Slice[Byte],
+            previous: Option[KeyValue.WriteOnly],
+            deadline: Option[Deadline],
+            compressDuplicateValues: Boolean): Transient.Put =
+      Transient.Put(
+        key = key,
+        value = None,
+        deadline = deadline,
+        previous = previous,
+        falsePositiveRate = 0.1,
+        time = None,
+        compressDuplicateValues = compressDuplicateValues
+      )
+
+    def put(key: Slice[Byte],
+            value: Slice[Byte],
+            falsePositiveRate: Double,
+            previous: Option[KeyValue.WriteOnly],
+            compressDuplicateValues: Boolean): Transient.Put =
+      Transient.Put(
+        key = key,
+        value = Some(value),
+        deadline = None,
+        previous = previous,
+        falsePositiveRate = falsePositiveRate,
+        time = None,
+        compressDuplicateValues = compressDuplicateValues
+      )
+
+  }
+
+}

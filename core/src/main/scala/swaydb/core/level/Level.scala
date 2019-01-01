@@ -21,7 +21,6 @@ package swaydb.core.level
 
 import java.nio.channels.{FileChannel, FileLock}
 import java.nio.file.{Path, StandardOpenOption}
-
 import com.typesafe.scalalogging.LazyLogging
 import swaydb.core.data.KeyValue.ReadOnly
 import swaydb.core.data._
@@ -46,7 +45,6 @@ import swaydb.data.config.Dir
 import swaydb.data.slice.Slice
 import swaydb.data.slice.Slice._
 import swaydb.data.storage.{AppendixStorage, LevelStorage}
-
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -54,6 +52,8 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 import FiniteDurationUtil._
+import swaydb.core.function.FunctionStore
+import swaydb.data.order.{KeyOrder, TimeOrder}
 
 private[core] object Level extends LazyLogging {
 
@@ -82,7 +82,9 @@ private[core] object Level extends LazyLogging {
             pushForward: Boolean = false,
             throttle: LevelMeter => Throttle,
             hasTimeLeftAtLeast: FiniteDuration,
-            compressDuplicateValues: Boolean)(implicit ordering: Ordering[Slice[Byte]],
+            compressDuplicateValues: Boolean)(implicit keyOrder: KeyOrder[Slice[Byte]],
+                                              timeOrder: TimeOrder[Slice[Byte]],
+                                              functionStore: FunctionStore,
                                               ec: ExecutionContext,
                                               keyValueLimiter: KeyValueLimiter,
                                               fileOpenLimiter: DBFile => Unit,
@@ -120,7 +122,13 @@ private[core] object Level extends LazyLogging {
               } else {
 
                 IO createDirectoriesIfAbsent appendixFolder
-                Map.persistent[Slice[Byte], Segment](appendixFolder, mmap, flushOnOverflow = true, appendixFlushCheckpointSize, dropCorruptedTailEntries = false).map(_.item)
+                Map.persistent[Slice[Byte], Segment](
+                  folder = appendixFolder,
+                  mmap = mmap,
+                  flushOnOverflow = true,
+                  fileSize = appendixFlushCheckpointSize,
+                  dropCorruptedTailEntries = false
+                ).map(_.item)
               }
 
             case AppendixStorage.Memory =>
@@ -186,7 +194,9 @@ private[core] class Level(val dirs: Seq[Dir],
                           appendix: Map[Slice[Byte], Segment],
                           lock: Option[FileLock],
                           val hasTimeLeftAtLeast: FiniteDuration,
-                          val compressDuplicateValues: Boolean)(implicit ordering: Ordering[Slice[Byte]],
+                          val compressDuplicateValues: Boolean)(implicit keyOrder: KeyOrder[Slice[Byte]],
+                                                                timeOrder: TimeOrder[Slice[Byte]],
+                                                                functionStore: FunctionStore,
                                                                 ec: ExecutionContext,
                                                                 removeWriter: MapEntryWriter[MapEntry.Remove[Slice[Byte]]],
                                                                 addWriter: MapEntryWriter[MapEntry.Put[Slice[Byte], Segment]],
@@ -249,7 +259,7 @@ private[core] class Level(val dirs: Seq[Dir],
   }
 
   private val actor =
-    LevelActor(ec, this, ordering)
+    LevelActor(ec, this, keyOrder)
 
   override def !(request: LevelAPI): Unit =
     actor ! request
@@ -764,7 +774,7 @@ private[core] class Level(val dirs: Seq[Dir],
                        originalSegmentMayBe: Option[Segment] = None,
                        initialMapEntry: Option[MapEntry[Slice[Byte], Segment]]): Try[MapEntry[Slice[Byte], Segment]] = {
 
-    import ordering._
+    import keyOrder._
 
     var removeOriginalSegments = true
     val nextLogEntry =
@@ -917,14 +927,14 @@ private[core] class Level(val dirs: Seq[Dir],
     * It does not check if the returned key is removed. Use [[Level.head]] instead.
     */
   override def firstKey: Option[Slice[Byte]] =
-    MinMax.min(appendix.firstKey, nextLevel.flatMap(_.firstKey))
+    MinMax.min(appendix.firstKey, nextLevel.flatMap(_.firstKey))(keyOrder)
 
   /**
     * Does a quick appendix lookup.
     * It does not check if the returned key is removed. Use [[Level.last]] instead.
     */
   override def lastKey: Option[Slice[Byte]] =
-    MinMax.max(appendix.lastValue().map(_.maxKey.maxKey), nextLevel.flatMap(_.lastKey))
+    MinMax.max(appendix.lastValue().map(_.maxKey.maxKey), nextLevel.flatMap(_.lastKey))(keyOrder)
 
   override def head =
     firstKey.map(ceiling) getOrElse TryUtil.successNone
@@ -948,7 +958,7 @@ private[core] class Level(val dirs: Seq[Dir],
     }
 
   def getSegment(minKey: Slice[Byte]): Option[Segment] =
-    appendix get minKey
+    appendix.get(minKey)(keyOrder)
 
   def lowerSegment(key: Slice[Byte]): Option[Segment] =
     (appendix lower key).map(_._2)

@@ -22,8 +22,10 @@ package swaydb.core.finders
 import swaydb.core.data.KeyValue
 import swaydb.core.util.TryUtil
 import swaydb.data.slice.Slice
-
-import scala.util.{Success, Try}
+import scala.util.{Failure, Success, Try}
+import swaydb.core.function.FunctionStore
+import swaydb.core.merge.KeyValueMerger
+import swaydb.data.order.{KeyOrder, TimeOrder}
 
 object Min {
 
@@ -34,16 +36,35 @@ object Min {
     *
     */
   def apply(current: KeyValue.ReadOnly.Fixed,
-            next: Option[KeyValue.ReadOnly.Put])(implicit ordering: Ordering[Slice[Byte]]): Try[Option[KeyValue.ReadOnly.Put]] = {
-    import ordering._
+            next: Option[KeyValue.ReadOnly.Put])(implicit keyOrder: KeyOrder[Slice[Byte]],
+                                                 timeOrder: TimeOrder[Slice[Byte]],
+                                                 functionStore: FunctionStore): Try[Option[KeyValue.ReadOnly.Put]] = {
+    import keyOrder._
     current match {
       case current: KeyValue.ReadOnly.Put =>
         next match {
           case Some(next) =>
             if (current.hasTimeLeft()) {
+              if (next.key equiv current.key)
+                current.toValue() flatMap {
+                  currentValue =>
+                    next.toValue() flatMap {
+                      nextValue =>
+                        KeyValueMerger(Some(next.key), currentValue, nextValue) flatMap {
+                          result =>
+                            result.toMemoryPut(next.key) match {
+                              case result @ Some(_) =>
+                                Success(result)
+
+                              case None =>
+                                Failure(new Exception("toMemoryPut returned None"))
+                            }
+                        }
+                    }
+                }
               //    2
-              //    2  or  5
-              if (next.key >= current.key)
+              //      3  or  5
+              else if (next.key > current.key)
                 Success(Some(current))
               //    2
               //0
@@ -76,7 +97,22 @@ object Min {
               //    2
               //    2
               if (next.key equiv current.key)
-                Success(current.deadline.map(next.updateDeadline) orElse Some(next))
+                current.toValue() flatMap {
+                  currentValue =>
+                    next.toValue() flatMap {
+                      nextValue =>
+                        KeyValueMerger(Some(next.key), currentValue, nextValue) flatMap {
+                          result =>
+                            result.toMemoryPut(next.key) match {
+                              case result @ Some(_) =>
+                                Success(result)
+
+                              case None =>
+                                Failure(new Exception("toMemoryPut returned None"))
+                            }
+                        }
+                    }
+                }
               //    2
               //0
               else if (next.key < current.key)
@@ -110,10 +146,22 @@ object Min {
               //    2
               //    2
               if (next.key equiv current.key)
-                if (current.deadline.isDefined)
-                  Success(Some(current.toPut()))
-                else
-                  Success(next.deadline.map(current.toPut) orElse Some(current.toPut()))
+                current.toValue() flatMap {
+                  currentValue =>
+                    next.toValue() flatMap {
+                      nextValue =>
+                        KeyValueMerger(Some(next.key), currentValue, nextValue) flatMap {
+                          result =>
+                            result.toMemoryPut(next.key) match {
+                              case result @ Some(_) =>
+                                Success(result)
+
+                              case None =>
+                                Failure(new Exception("toMemoryPut returned None"))
+                            }
+                        }
+                    }
+                }
 
               //    2
               //0

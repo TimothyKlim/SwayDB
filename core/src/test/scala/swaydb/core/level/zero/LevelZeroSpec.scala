@@ -28,7 +28,7 @@ import swaydb.core.util.Benchmark
 import swaydb.data.compaction.Throttle
 import swaydb.data.slice.Slice
 import swaydb.data.util.StorageUnits._
-import swaydb.order.KeyOrder
+import swaydb.data.order.KeyOrder
 import swaydb.serializers.Default._
 import swaydb.serializers._
 
@@ -61,7 +61,7 @@ class LevelZeroSpec3 extends LevelZeroSpec {
 
 sealed trait LevelZeroSpec extends TestBase with MockFactory with Benchmark {
 
-  override implicit val ordering: Ordering[Slice[Byte]] = KeyOrder.default
+  override implicit val keyOrder: KeyOrder[Slice[Byte]] = KeyOrder.default
 
   import swaydb.core.map.serializer.LevelZeroMapEntryWriter._
 
@@ -117,7 +117,7 @@ sealed trait LevelZeroSpec extends TestBase with MockFactory with Benchmark {
       //in-memory key-values are slice of the whole Segment.
       if (persistent) {
         //put the same key-value to Level1 and expect the key-values to be sliced
-        level.putKeyValues(Slice(Memory.Put(one, one))).assertGet
+        level.putKeyValues(Slice(Memory.put(one, one))).assertGet
         val gotFromLevelOne = level.get(one).assertGet
         gotFromLevelOne.getOrFetchValue.assertGet shouldBe one
         //ensure that key-values are not unsliced in LevelOne.
@@ -192,7 +192,7 @@ sealed trait LevelZeroSpec extends TestBase with MockFactory with Benchmark {
 
     "batch writing empty keys should fail" in {
       if (persistent) {
-        val keyValues = Slice(Transient.Put(Slice.empty, 1))
+        val keyValues = Slice(Transient.put(Slice.empty, 1))
 
         val zero = TestLevelZero(TestLevel())
         assertThrows[Exception] {
@@ -212,7 +212,7 @@ sealed trait LevelZeroSpec extends TestBase with MockFactory with Benchmark {
       val keyValues = randomIntKeyStringValues(keyValuesCount)
       keyValues foreach {
         keyValue =>
-          zero.put(keyValue.key, keyValue.getOrFetchValue.assertGetOpt).assertGet
+          zero.put(keyValue.key, keyValue.getOrFetchValue).assertGet
       }
 
       assertGet(keyValues, zero)
@@ -233,7 +233,7 @@ sealed trait LevelZeroSpec extends TestBase with MockFactory with Benchmark {
 
       assertGet(keyValues, zero)
 
-      val removeKeyValues = Slice(keyValues.map(keyValue => Remove(keyValue.key)).toArray)
+      val removeKeyValues = Slice(keyValues.map(keyValue => Memory.remove(keyValue.key)).toArray)
       zero.put(removeKeyValues.toMapEntry.get).assertGet
 
       assertGetNone(keyValues, zero)
@@ -249,7 +249,7 @@ sealed trait LevelZeroSpec extends TestBase with MockFactory with Benchmark {
       val keyValues = randomIntKeyStringValues(keyValuesCount)
       keyValues foreach {
         keyValue =>
-          zero.put(keyValue.key, keyValue.getOrFetchValue.assertGetOpt).assertGet
+          zero.put(keyValue.key, keyValue.getOrFetchValue).assertGet
       }
       eventual {
         zero.sizeOfSegments should be > 1L

@@ -21,7 +21,6 @@ package swaydb.core.segment
 
 import java.nio.file.Path
 import java.util.concurrent.ConcurrentSkipListMap
-
 import bloomfilter.mutable.BloomFilter
 import com.typesafe.scalalogging.LazyLogging
 import swaydb.core.data._
@@ -31,7 +30,7 @@ import swaydb.core.io.reader.Reader
 import swaydb.core.level.PathsDistributor
 import swaydb.core.map.Map
 import swaydb.core.queue.KeyValueLimiter
-import swaydb.core.segment.format.one.{SegmentReader, SegmentWriter}
+import swaydb.core.segment.format.a.{SegmentReader, SegmentWriter}
 import swaydb.core.segment.merge.SegmentMerger
 import swaydb.core.util.CollectionUtil._
 import swaydb.core.util.PipeOps._
@@ -40,12 +39,13 @@ import swaydb.core.util.{BloomFilterUtil, IDGenerator}
 import swaydb.data.config.Dir
 import swaydb.data.segment.MaxKey
 import swaydb.data.slice.Slice
-
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.{Deadline, FiniteDuration}
 import scala.util.{Failure, Success, Try}
+import swaydb.core.function.FunctionStore
+import swaydb.data.order.{KeyOrder, TimeOrder}
 
 private[core] object Segment extends LazyLogging {
 
@@ -72,13 +72,15 @@ private[core] object Segment extends LazyLogging {
   def memory(path: Path,
              keyValues: Iterable[KeyValue.WriteOnly],
              bloomFilterFalsePositiveRate: Double,
-             removeDeletes: Boolean)(implicit ordering: Ordering[Slice[Byte]],
+             removeDeletes: Boolean)(implicit keyOrder: KeyOrder[Slice[Byte]],
+                                     timeOrder: TimeOrder[Slice[Byte]],
+                                     functionStore: FunctionStore,
                                      groupingStrategy: Option[KeyValueGroupingStrategyInternal],
                                      keyValueLimiter: KeyValueLimiter): Try[Segment] =
     if (keyValues.isEmpty) {
       Failure(new Exception("Empty key-values submitted to memory Segment."))
     } else {
-      val skipList = new ConcurrentSkipListMap[Slice[Byte], Memory](ordering)
+      val skipList = new ConcurrentSkipListMap[Slice[Byte], Memory](keyOrder)
 
       val bloomFilter =
         BloomFilterUtil.initBloomFilter(keyValues, bloomFilterFalsePositiveRate)
@@ -107,40 +109,82 @@ private[core] object Segment extends LazyLogging {
           case remove: Transient.Remove =>
             skipList.put(
               keyUnsliced,
-              Memory.Remove(keyUnsliced, remove.deadline)
+              Memory.Remove(
+                key = keyUnsliced,
+                deadline = remove.deadline,
+                time = remove.time.unslice()
+              )
             )
             bloomFilter.foreach(_ add keyUnsliced)
             Segment.getNearestDeadline(currentNearestDeadline, keyValue)
 
           case put: Transient.Put =>
-            keyValue.getOrFetchValue flatMap {
-              value =>
-                val unslicedValue = value.map(_.unslice())
-                unslicedValue match {
-                  case Some(value) if value.nonEmpty =>
-                    skipList.put(keyUnsliced, Memory.Put(key = keyUnsliced, value = value.unslice(), put.deadline))
+            val unslicedValue = put.value.map(_.unslice())
+            unslicedValue match {
+              case Some(value) if value.nonEmpty =>
+                skipList.put(
+                  keyUnsliced,
+                  Memory.Put(
+                    key = keyUnsliced,
+                    value = Some(value.unslice()),
+                    deadline = put.deadline,
+                    time = put.time.unslice()
+                  )
+                )
 
-                  case _ =>
-                    skipList.put(keyUnsliced, Memory.Put(key = keyUnsliced, value = None, put.deadline))
-                }
-                bloomFilter.foreach(_ add keyUnsliced)
-                Segment.getNearestDeadline(currentNearestDeadline, keyValue)
+              case _ =>
+                skipList.put(
+                  keyUnsliced,
+                  Memory.Put(
+                    key = keyUnsliced,
+                    value = None,
+                    deadline = put.deadline,
+                    time = put.time.unslice()
+                  )
+                )
             }
+            bloomFilter.foreach(_ add keyUnsliced)
+            Segment.getNearestDeadline(currentNearestDeadline, keyValue)
 
           case update: Transient.Update =>
-            keyValue.getOrFetchValue flatMap {
-              value =>
-                val unslicedValue = value.map(_.unslice())
-                unslicedValue match {
-                  case Some(value) if value.nonEmpty =>
-                    skipList.put(keyUnsliced, Memory.Update(key = keyUnsliced, value = value.unslice(), update.deadline))
+            val unslicedValue = update.value.map(_.unslice())
+            unslicedValue match {
+              case Some(value) if value.nonEmpty =>
+                skipList.put(
+                  keyUnsliced,
+                  Memory.Update(
+                    key = keyUnsliced,
+                    value = Some(value.unslice()),
+                    deadline = update.deadline,
+                    time = update.time.unslice()
+                  )
+                )
 
-                  case _ =>
-                    skipList.put(keyUnsliced, Memory.Update(key = keyUnsliced, value = None, update.deadline))
-                }
-                bloomFilter.foreach(_ add keyUnsliced)
-                Segment.getNearestDeadline(currentNearestDeadline, keyValue)
+              case _ =>
+                skipList.put(
+                  keyUnsliced,
+                  Memory.Update(
+                    key = keyUnsliced,
+                    value = None,
+                    deadline = update.deadline,
+                    time = update.time.unslice()
+                  )
+                )
             }
+            bloomFilter.foreach(_ add keyUnsliced)
+            Segment.getNearestDeadline(currentNearestDeadline, keyValue)
+
+          case pendingApply: Transient.PendingApply =>
+            skipList.put(
+              keyUnsliced,
+              Memory.PendingApply(
+                key = keyUnsliced,
+                applies = pendingApply.applies.map(_.unslice),
+              )
+            )
+
+            bloomFilter.foreach(_ add keyUnsliced)
+            Segment.getNearestDeadline(currentNearestDeadline, keyValue)
 
           case range: KeyValue.WriteOnly.Range =>
             range.fetchFromAndRangeValue flatMap {
@@ -199,7 +243,9 @@ private[core] object Segment extends LazyLogging {
                  mmapReads: Boolean,
                  mmapWrites: Boolean,
                  keyValues: Iterable[KeyValue.WriteOnly],
-                 removeDeletes: Boolean)(implicit ordering: Ordering[Slice[Byte]],
+                 removeDeletes: Boolean)(implicit keyOrder: KeyOrder[Slice[Byte]],
+                                         timeOrder: TimeOrder[Slice[Byte]],
+                                         functionStore: FunctionStore,
                                          keyValueLimiter: KeyValueLimiter,
                                          fileOpenLimiter: DBFile => Unit,
                                          compression: Option[KeyValueGroupingStrategyInternal],
@@ -268,7 +314,9 @@ private[core] object Segment extends LazyLogging {
                     removeDeletes: Boolean,
                     minSegmentSize: Long,
                     bloomFilterFalsePositiveRate: Double,
-                    compressDuplicateValues: Boolean)(implicit ordering: Ordering[Slice[Byte]],
+                    compressDuplicateValues: Boolean)(implicit keyOrder: KeyOrder[Slice[Byte]],
+                                                      timeOrder: TimeOrder[Slice[Byte]],
+                                                      functionStore: FunctionStore,
                                                       keyValueLimiter: KeyValueLimiter,
                                                       fileOpenLimiter: DBFile => Unit,
                                                       compression: Option[KeyValueGroupingStrategyInternal],
@@ -321,7 +369,9 @@ private[core] object Segment extends LazyLogging {
                     removeDeletes: Boolean,
                     minSegmentSize: Long,
                     bloomFilterFalsePositiveRate: Double,
-                    compressDuplicateValues: Boolean)(implicit ordering: Ordering[Slice[Byte]],
+                    compressDuplicateValues: Boolean)(implicit keyOrder: KeyOrder[Slice[Byte]],
+                                                      timeOrder: TimeOrder[Slice[Byte]],
+                                                      functionStore: FunctionStore,
                                                       keyValueLimiter: KeyValueLimiter,
                                                       fileOpenLimiter: DBFile => Unit,
                                                       compression: Option[KeyValueGroupingStrategyInternal],
@@ -364,7 +414,9 @@ private[core] object Segment extends LazyLogging {
                    removeDeletes: Boolean,
                    minSegmentSize: Long,
                    bloomFilterFalsePositiveRate: Double,
-                   compressDuplicateValues: Boolean)(implicit ordering: Ordering[Slice[Byte]],
+                   compressDuplicateValues: Boolean)(implicit keyOrder: KeyOrder[Slice[Byte]],
+                                                     timeOrder: TimeOrder[Slice[Byte]],
+                                                     functionStore: FunctionStore,
                                                      groupingStrategy: Option[KeyValueGroupingStrategyInternal],
                                                      keyValueLimiter: KeyValueLimiter,
                                                      ec: ExecutionContext): Try[Slice[Segment]] =
@@ -385,7 +437,9 @@ private[core] object Segment extends LazyLogging {
                    removeDeletes: Boolean,
                    minSegmentSize: Long,
                    bloomFilterFalsePositiveRate: Double,
-                   compressDuplicateValues: Boolean)(implicit ordering: Ordering[Slice[Byte]],
+                   compressDuplicateValues: Boolean)(implicit keyOrder: KeyOrder[Slice[Byte]],
+                                                     timeOrder: TimeOrder[Slice[Byte]],
+                                                     functionStore: FunctionStore,
                                                      groupingStrategy: Option[KeyValueGroupingStrategyInternal],
                                                      keyValueLimiter: KeyValueLimiter,
                                                      ec: ExecutionContext): Try[Slice[Segment]] =
@@ -417,7 +471,9 @@ private[core] object Segment extends LazyLogging {
             segmentSize: Int,
             removeDeletes: Boolean,
             nearestExpiryDeadline: Option[Deadline],
-            checkExists: Boolean = true)(implicit ordering: Ordering[Slice[Byte]],
+            checkExists: Boolean = true)(implicit keyOrder: KeyOrder[Slice[Byte]],
+                                         timeOrder: TimeOrder[Slice[Byte]],
+                                         functionStore: FunctionStore,
                                          keyValueLimiter: KeyValueLimiter,
                                          fileOpenLimiter: DBFile => Unit,
                                          compression: Option[KeyValueGroupingStrategyInternal],
@@ -456,7 +512,9 @@ private[core] object Segment extends LazyLogging {
             mmapReads: Boolean,
             mmapWrites: Boolean,
             removeDeletes: Boolean,
-            checkExists: Boolean)(implicit ordering: Ordering[Slice[Byte]],
+            checkExists: Boolean)(implicit keyOrder: KeyOrder[Slice[Byte]],
+                                  timeOrder: TimeOrder[Slice[Byte]],
+                                  functionStore: FunctionStore,
                                   keyValueLimiter: KeyValueLimiter,
                                   fileOpenLimiter: DBFile => Unit,
                                   compression: Option[KeyValueGroupingStrategyInternal],
@@ -510,8 +568,8 @@ private[core] object Segment extends LazyLogging {
   }
 
   def belongsTo(keyValue: KeyValue,
-                segment: Segment)(implicit ordering: Ordering[Slice[Byte]]): Boolean = {
-    import ordering._
+                segment: Segment)(implicit keyOrder: KeyOrder[Slice[Byte]]): Boolean = {
+    import keyOrder._
     keyValue.key >= segment.minKey && {
       if (segment.maxKey.inclusive)
         keyValue.key <= segment.maxKey.maxKey
@@ -522,37 +580,37 @@ private[core] object Segment extends LazyLogging {
 
   def overlaps(minKey: Slice[Byte],
                maxKey: Slice[Byte],
-               segment: Segment)(implicit ordering: Ordering[Slice[Byte]]): Boolean =
+               segment: Segment)(implicit keyOrder: KeyOrder[Slice[Byte]]): Boolean =
     Slice.intersects((minKey, maxKey, true), (segment.minKey, segment.maxKey.maxKey, segment.maxKey.inclusive))
 
   def overlaps(minKey: Slice[Byte],
                maxKey: Slice[Byte],
-               segments: Iterable[Segment])(implicit ordering: Ordering[Slice[Byte]]): Boolean =
+               segments: Iterable[Segment])(implicit keyOrder: KeyOrder[Slice[Byte]]): Boolean =
     segments.exists(segment => overlaps(minKey, maxKey, segment))
 
   def overlaps(map: Map[Slice[Byte], Memory.SegmentResponse],
-               segments: Iterable[Segment])(implicit ordering: Ordering[Slice[Byte]]): Boolean =
+               segments: Iterable[Segment])(implicit keyOrder: KeyOrder[Slice[Byte]]): Boolean =
     Segment.minMaxKey(map) exists {
       case (minKey, maxKey) =>
         Segment.overlaps(minKey, maxKey, segments)
     }
 
   def overlaps(segment1: Segment,
-               segment2: Segment)(implicit ordering: Ordering[Slice[Byte]]): Boolean =
+               segment2: Segment)(implicit keyOrder: KeyOrder[Slice[Byte]]): Boolean =
     Slice.intersects((segment1.minKey, segment1.maxKey.maxKey, segment1.maxKey.inclusive), (segment2.minKey, segment2.maxKey.maxKey, segment2.maxKey.inclusive))
 
   def partitionOverlapping(segments1: Iterable[Segment],
-                           segments2: Iterable[Segment])(implicit ordering: Ordering[Slice[Byte]]): (Iterable[Segment], Iterable[Segment]) =
+                           segments2: Iterable[Segment])(implicit keyOrder: KeyOrder[Slice[Byte]]): (Iterable[Segment], Iterable[Segment]) =
     segments1
       .partition(segmentToWrite => segments2.exists(existingSegment => Segment.overlaps(segmentToWrite, existingSegment)))
 
   def nonOverlapping(segments1: Iterable[Segment],
-                     segments2: Iterable[Segment])(implicit ordering: Ordering[Slice[Byte]]): Iterable[Segment] =
+                     segments2: Iterable[Segment])(implicit keyOrder: KeyOrder[Slice[Byte]]): Iterable[Segment] =
     nonOverlapping(segments1, segments2, segments1.size)
 
   def nonOverlapping(segments1: Iterable[Segment],
                      segments2: Iterable[Segment],
-                     count: Int)(implicit ordering: Ordering[Slice[Byte]]): Iterable[Segment] = {
+                     count: Int)(implicit keyOrder: KeyOrder[Slice[Byte]]): Iterable[Segment] = {
     if (count == 0)
       Iterable.empty
     else {
@@ -568,7 +626,7 @@ private[core] object Segment extends LazyLogging {
   }
 
   def overlaps(segments1: Iterable[Segment],
-               segments2: Iterable[Segment])(implicit ordering: Ordering[Slice[Byte]]): Iterable[Segment] =
+               segments2: Iterable[Segment])(implicit keyOrder: KeyOrder[Slice[Byte]]): Iterable[Segment] =
     segments1.filter(segment1 => segments2.exists(segment2 => overlaps(segment1, segment2)))
 
   def intersects(segments1: Iterable[Segment], segments2: Iterable[Segment]): Boolean =
@@ -609,25 +667,25 @@ private[core] object Segment extends LazyLogging {
   def tempMinMaxKeyValues(segments: Iterable[Segment]): Slice[Memory] =
     segments.foldLeft(Slice.create[Memory](segments.size * 2)) {
       case (keyValues, segment) =>
-        keyValues add Memory.Put(segment.minKey, None)
+        keyValues add Memory.Put(segment.minKey, None, None, None)
         segment.maxKey match {
           case MaxKey.Fixed(maxKey) =>
-            keyValues add Memory.Put(maxKey, None)
+            keyValues add Memory.Put(maxKey, None, None, None)
 
           case MaxKey.Range(fromKey, maxKey) =>
-            keyValues add Memory.Range(fromKey, maxKey, None, Value.Update(maxKey))
+            keyValues add Memory.Range(fromKey, maxKey, None, Value.Update(Some(maxKey), None, None))
         }
     }
 
   def tempMinMaxKeyValues(map: Map[Slice[Byte], Memory.SegmentResponse]): Slice[Memory] = {
     for {
-      minKey <- map.headValue().map(memory => Memory.Put(memory.key, None))
+      minKey <- map.headValue().map(memory => Memory.Put(memory.key, None, None, None))
       maxKey <- map.lastValue() map {
         case fixed: Memory.Fixed =>
-          Memory.Put(fixed.key, None)
+          Memory.Put(fixed.key, None, None, None)
 
-        case Memory.Range(fromKey, toKey, fromValue, rangeValue) =>
-          Memory.Range(fromKey, toKey, None, Value.Update(toKey))
+        case Memory.Range(fromKey, toKey, _, _) =>
+          Memory.Range(fromKey, toKey, None, Value.Update(None, None, None))
       }
     } yield
       Slice(minKey, maxKey)
@@ -649,7 +707,7 @@ private[core] object Segment extends LazyLogging {
 
   def overlapsWithBusySegments(inputSegments: Iterable[Segment],
                                busySegments: Iterable[Segment],
-                               appendixSegments: Iterable[Segment])(implicit ordering: Ordering[Slice[Byte]]): Try[Boolean] =
+                               appendixSegments: Iterable[Segment])(implicit keyOrder: KeyOrder[Slice[Byte]]): Try[Boolean] =
     if (busySegments.isEmpty)
       Success(false)
     else
@@ -666,7 +724,7 @@ private[core] object Segment extends LazyLogging {
 
   def overlapsWithBusySegments(map: Map[Slice[Byte], Memory.SegmentResponse],
                                busySegments: Iterable[Segment],
-                               appendixSegments: Iterable[Segment])(implicit ordering: Ordering[Slice[Byte]]): Try[Boolean] =
+                               appendixSegments: Iterable[Segment])(implicit keyOrder: KeyOrder[Slice[Byte]]): Try[Boolean] =
     if (busySegments.isEmpty)
       Success(false)
     else {
@@ -675,7 +733,7 @@ private[core] object Segment extends LazyLogging {
         last <- map.lastValue()
       } yield {
         {
-          if (ordering.equiv(head.key, last.key))
+          if (keyOrder.equiv(head.key, last.key))
             SegmentAssigner.assign(keyValues = Slice(head), segments = appendixSegments)
           else
             SegmentAssigner.assign(keyValues = Slice(head, last), segments = appendixSegments)
@@ -721,23 +779,32 @@ private[core] object Segment extends LazyLogging {
     }
 
   def getNearestDeadline(previous: Option[Deadline],
-                         keyValue: KeyValue.ReadOnly): Try[Option[Deadline]] =
-    keyValue match {
-      case readOnly: KeyValue.ReadOnly.Fixed =>
+                         next: KeyValue.ReadOnly): Try[Option[Deadline]] =
+    next match {
+      case readOnly: KeyValue.ReadOnly.Put =>
+        Try(getNearestDeadline(previous, readOnly.deadline))
+
+      case readOnly: KeyValue.ReadOnly.Remove =>
+        Try(getNearestDeadline(previous, readOnly.deadline))
+
+      case readOnly: KeyValue.ReadOnly.Update =>
         Try(getNearestDeadline(previous, readOnly.deadline))
 
       case range: KeyValue.ReadOnly.Range =>
         range.fetchFromAndRangeValue map {
           case (Some(fromValue), rangeValue) =>
-            getNearestDeadline(previous, fromValue.deadline) ==> {
-              getNearestDeadline(_, rangeValue.deadline)
+            getNearestDeadline(previous, fromValue) ==> {
+              getNearestDeadline(_, rangeValue)
             }
           case (None, rangeValue) =>
-            getNearestDeadline(previous, rangeValue.deadline)
+            getNearestDeadline(previous, rangeValue)
         }
 
       case group: KeyValue.ReadOnly.Group =>
         Try(getNearestDeadline(previous, group.deadline))
+
+      case _: KeyValue.ReadOnly.PendingApply =>
+        Success(previous)
     }
 
   def getNearestDeadline(previous: Option[Deadline],
@@ -749,16 +816,42 @@ private[core] object Segment extends LazyLogging {
       case range: KeyValue.WriteOnly.Range =>
         (range.fromValue, range.rangeValue) match {
           case (Some(fromValue), rangeValue) =>
-            getNearestDeadline(previous, fromValue.deadline) ==> {
-              getNearestDeadline(_, rangeValue.deadline)
+            getNearestDeadline(previous, fromValue) ==> {
+              getNearestDeadline(_, rangeValue)
             }
           case (None, rangeValue) =>
-            getNearestDeadline(previous, rangeValue.deadline)
+            getNearestDeadline(previous, rangeValue)
         }
 
       case group: KeyValue.WriteOnly.Group =>
         getNearestDeadline(previous, group.deadline)
 
+    }
+
+  def getNearestDeadline(previous: Option[Deadline],
+                         keyValue: Value.FromValue): Option[Deadline] =
+    keyValue match {
+      case rangeValue: Value.RangeValue =>
+        getNearestDeadline(previous, rangeValue)
+
+      case put: Value.Put =>
+        put.deadline
+    }
+
+  def getNearestDeadline(previous: Option[Deadline],
+                         keyValue: Value.RangeValue): Option[Deadline] =
+    keyValue match {
+      case value: Value.RangeValue =>
+        value match {
+          case remove: Value.Remove =>
+            remove.deadline
+          case update: Value.Update =>
+            update.deadline
+          case _: Value.Function =>
+            None
+          case _: Value.PendingApply =>
+            None
+        }
     }
 
   def getNearestDeadline(keyValues: Iterable[KeyValue]): Try[Option[Deadline]] =

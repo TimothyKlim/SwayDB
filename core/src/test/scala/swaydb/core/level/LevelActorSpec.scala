@@ -28,7 +28,7 @@ import swaydb.core.level.actor.LevelState.{PushScheduled, Pushing, Sleeping, Wai
 import swaydb.core.level.actor._
 import swaydb.core.segment.Segment
 import swaydb.core.util.{Delay, TryUtil}
-import swaydb.order.KeyOrder
+import swaydb.data.order.KeyOrder
 
 import scala.concurrent.duration._
 import scala.util.{Failure, Random, Success}
@@ -38,7 +38,7 @@ import scala.util.{Failure, Random, Success}
   */
 class LevelActorSpec extends TestBase with MockFactory {
 
-  override implicit val ordering = KeyOrder.default
+  override implicit val keyOrder = KeyOrder.default
 
   "LevelActor.wakeUp" should {
     "return PushJob and PushScheduled state when the current state is Sleeping and there is lower level" in {

@@ -20,14 +20,12 @@
 package swaydb.core.map.serializer
 
 import java.util.concurrent.TimeUnit
-
+import scala.concurrent.duration.Deadline
+import scala.util.{Failure, Success, Try}
 import swaydb.core.data.Memory
 import swaydb.core.map.MapEntry
 import swaydb.core.util.TryUtil
 import swaydb.data.slice.{Reader, Slice}
-
-import scala.concurrent.duration.Deadline
-import scala.util.{Failure, Success, Try}
 
 object LevelZeroMapEntryReader {
 
@@ -40,7 +38,7 @@ object LevelZeroMapEntryReader {
         after <- reader.readLong()
       } yield {
         val deadline = if (after == 0) None else Some(Deadline(after, TimeUnit.NANOSECONDS))
-        Some(MapEntry.Put(key, Memory.Remove(key, deadline))(LevelZeroMapEntryWriter.Level0RemoveWriter))
+        Some(MapEntry.Put(key, Memory.Remove(key, deadline, ???))(LevelZeroMapEntryWriter.Level0RemoveWriter))
       }
   }
 
@@ -55,7 +53,7 @@ object LevelZeroMapEntryReader {
         after <- reader.readLong()
       } yield {
         val deadline = if (after == 0) None else Some(Deadline(after, TimeUnit.NANOSECONDS))
-        Some(MapEntry.Put(key, Memory.Put(key, value, deadline))(LevelZeroMapEntryWriter.Level0PutWriter))
+        Some(MapEntry.Put(key, Memory.Put(key, value, deadline, ???))(LevelZeroMapEntryWriter.Level0PutWriter))
       }
   }
 
@@ -70,10 +68,9 @@ object LevelZeroMapEntryReader {
         after <- reader.readLong()
       } yield {
         val deadline = if (after == 0) None else Some(Deadline(after, TimeUnit.NANOSECONDS))
-        Some(MapEntry.Put(key, Memory.Update(key, value, deadline))(LevelZeroMapEntryWriter.Level0UpdateWriter))
+        Some(MapEntry.Put(key, Memory.Update(key, value, deadline, ???))(LevelZeroMapEntryWriter.Level0UpdateWriter))
       }
   }
-
 
   implicit object Level0RangeReader extends MapEntryReader[MapEntry.Put[Slice[Byte], Memory.Range]] {
 

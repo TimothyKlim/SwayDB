@@ -22,7 +22,7 @@ package swaydb.core.level
 import swaydb.core.TestBase
 import swaydb.core.util.Benchmark
 import swaydb.data.slice.Slice
-import swaydb.order.KeyOrder
+import swaydb.data.order.KeyOrder
 
 //@formatter:off
 class LevelPerformanceSpec0 extends LevelPerformanceSpec
@@ -50,7 +50,7 @@ class LevelPerformanceSpec3 extends LevelPerformanceSpec {
 
 sealed trait LevelPerformanceSpec extends TestBase with Benchmark {
 
-  override implicit val ordering: Ordering[Slice[Byte]] = KeyOrder.default
+  override implicit val keyOrder: KeyOrder[Slice[Byte]] = KeyOrder.default
   val keyValuesCount = 100
 
   val keyValues = randomIntKeyValuesMemory(25000)

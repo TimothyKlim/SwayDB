@@ -23,7 +23,7 @@ import swaydb.compression.CompressionInternal
 import swaydb.core.TestBase
 import swaydb.core.data._
 import swaydb.data.slice.Slice
-import swaydb.order.KeyOrder
+import swaydb.data.order.KeyOrder
 import swaydb.serializers.Default._
 import swaydb.serializers._
 
@@ -36,7 +36,7 @@ import scala.util.Random
   */
 class GroupCompressorSpec extends TestBase {
 
-  override implicit val ordering: Ordering[Slice[Byte]] = KeyOrder.default
+  override implicit val keyOrder: KeyOrder[Slice[Byte]] = KeyOrder.default
 
   val keyValueCount = 100
 
@@ -97,7 +97,7 @@ class GroupCompressorSpec extends TestBase {
             expectedIndexCompressionUsed = indexCompression,
             expectedValueCompressionUsed =
               //if either a Range of if the value is not None, then the compression will be used.
-              if (keyValue.isInstanceOf[Memory.Range] || keyValue.getOrFetchValue.assertGetOpt.isDefined)
+              if (keyValue.isInstanceOf[Memory.Range] || keyValue.getOrFetchValue.isDefined)
                 Some(valuesCompression)
               else
                 None
@@ -109,7 +109,7 @@ class GroupCompressorSpec extends TestBase {
     "create a group on multiple key-values" when {
       "compression does not satisfy min compression requirement" in {
         runThis(10.times) {
-          val keyValues = randomIntKeyValues(keyValueCount)
+          val keyValues = randomKeyValues(keyValueCount)
 
           Transient.Group(
             keyValues = keyValues,
@@ -125,7 +125,7 @@ class GroupCompressorSpec extends TestBase {
         runThis(10.times) {
           val keyValues =
             eitherOne(
-              left = randomIntKeyValues(keyValueCount),
+              left = randomKeyValues(keyValueCount),
               right = randomizedIntKeyValues(keyValueCount)
             )
 
@@ -144,7 +144,7 @@ class GroupCompressorSpec extends TestBase {
             expectedIndexCompressionUsed = indexCompression,
             expectedValueCompressionUsed =
               //if either a Range of if the value is not None, then the compression will be used.
-              if (keyValues.exists(keyValue => keyValue.isRange || keyValue.getOrFetchValue.assertGetOpt.isDefined))
+              if (keyValues.exists(keyValue => keyValue.isRange || keyValue.getOrFetchValue.isDefined))
                 Some(valuesCompression)
               else
                 None
@@ -156,7 +156,7 @@ class GroupCompressorSpec extends TestBase {
         runThis(10.times) {
           val keyValues =
             eitherOne(
-              left = randomIntKeyValues(keyValueCount),
+              left = randomKeyValues(keyValueCount),
               right = randomizedIntKeyValues(keyValueCount)
             )
 
@@ -175,7 +175,7 @@ class GroupCompressorSpec extends TestBase {
             expectedIndexCompressionUsed = indexCompressions.last,
             expectedValueCompressionUsed =
               //if either a Range of if the value is not None, then the compression will be used.
-              if (keyValues.exists(keyValue => keyValue.isRange || keyValue.getOrFetchValue.assertGetOpt.isDefined))
+              if (keyValues.exists(keyValue => keyValue.isRange || keyValue.getOrFetchValue.isDefined))
                 Some(valueCompressions.last)
               else
                 None
@@ -190,7 +190,7 @@ class GroupCompressorSpec extends TestBase {
           //create an exiting Group
           val existingGroup =
             Transient.Group(
-              keyValues = randomIntKeyValues(keyValueCount),
+              keyValues = randomKeyValues(keyValueCount),
               indexCompression = randomCompression(),
               valueCompression = randomCompression(),
               previous = None,
@@ -199,7 +199,7 @@ class GroupCompressorSpec extends TestBase {
 
           //add more key-values to existing group.
           val keyValues: Slice[KeyValue.WriteOnly] =
-            (Seq(existingGroup) ++ randomIntKeyValues(keyValueCount, startId = Some(existingGroup.keyValues.last.key.readInt() + 100000))).updateStats
+            (Seq(existingGroup) ++ randomKeyValues(keyValueCount, startId = Some(existingGroup.keyValues.last.key.readInt() + 100000))).updateStats
 
           //create a new Group from key-values that already has an existing Group.
           Transient.Group(
@@ -218,7 +218,7 @@ class GroupCompressorSpec extends TestBase {
           //create an exiting Group
           val existingGroup =
             Transient.Group(
-              keyValues = randomIntKeyValues(keyValueCount),
+              keyValues = randomKeyValues(keyValueCount),
               indexCompression = randomCompression(),
               valueCompression = randomCompression(),
               falsePositiveRate = 0.1,
@@ -228,7 +228,7 @@ class GroupCompressorSpec extends TestBase {
           //add more key-values to existing group.
           val keyValues: Slice[KeyValue.WriteOnly] =
             eitherOne(
-              left = (Seq(existingGroup) ++ randomIntKeyValues(keyValueCount, startId = Some(existingGroup.keyValues.last.key.readInt() + 100000))).updateStats,
+              left = (Seq(existingGroup) ++ randomKeyValues(keyValueCount, startId = Some(existingGroup.keyValues.last.key.readInt() + 100000))).updateStats,
               right = (Seq(existingGroup) ++ randomizedIntKeyValues(keyValueCount, startId = Some(existingGroup.keyValues.last.key.readInt() + 100000))).updateStats
             )
 
@@ -247,7 +247,7 @@ class GroupCompressorSpec extends TestBase {
             expectedIndexCompressionUsed = indexCompression,
             expectedValueCompressionUsed =
               //if either a Range of if the value is not None, then the compression will be used.
-              if (keyValues.exists(keyValue => keyValue.isRange || keyValue.getOrFetchValue.assertGetOpt.isDefined))
+              if (keyValues.exists(keyValue => keyValue.isRange || keyValue.getOrFetchValue.isDefined))
                 Some(valueCompression)
               else
                 None
@@ -259,7 +259,7 @@ class GroupCompressorSpec extends TestBase {
         runThis(10.times) {
           val keyValues =
             eitherOne(
-              left = randomIntKeyValues(keyValueCount),
+              left = randomKeyValues(keyValueCount),
               right = randomizedIntKeyValues(keyValueCount)
             )
 
@@ -278,7 +278,7 @@ class GroupCompressorSpec extends TestBase {
             expectedIndexCompressionUsed = indexCompressions.last,
             expectedValueCompressionUsed =
               //if either a Range of if the value is not None, then the compression will be used.
-              if (keyValues.exists(keyValue => keyValue.isRange || keyValue.getOrFetchValue.assertGetOpt.isDefined))
+              if (keyValues.exists(keyValue => keyValue.isRange || keyValue.getOrFetchValue.isDefined))
                 valueCompressions.lastOption
               else
                 None

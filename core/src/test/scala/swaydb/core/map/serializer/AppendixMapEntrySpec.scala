@@ -30,7 +30,7 @@ import swaydb.core.queue.KeyValueLimiter
 import swaydb.core.segment.Segment
 import swaydb.core.{TestBase, TestLimitQueues}
 import swaydb.data.slice.Slice
-import swaydb.order.KeyOrder
+import swaydb.data.order.KeyOrder
 import swaydb.serializers.Default._
 import swaydb.serializers._
 
@@ -38,7 +38,7 @@ import scala.collection.JavaConverters._
 
 class AppendixMapEntrySpec extends TestBase {
 
-  override implicit val ordering = KeyOrder.default
+  override implicit val keyOrder = KeyOrder.default
   implicit val maxSegmentsOpenCacheImplicitLimiter: DBFile => Unit = TestLimitQueues.fileOpenLimiter
   implicit val keyValuesLimitImplicitLimiter: KeyValueLimiter = TestLimitQueues.keyValueLimiter
 
@@ -63,7 +63,7 @@ class AppendixMapEntrySpec extends TestBase {
       val readEntry = MapEntryReader.read[MapEntry[Slice[Byte], Segment]](Reader(slice)).assertGet
       readEntry shouldBe entry
 
-      val skipList = new ConcurrentSkipListMap[Slice[Byte], Segment](ordering)
+      val skipList = new ConcurrentSkipListMap[Slice[Byte], Segment](keyOrder)
       readEntry applyTo skipList
       val scalaSkipList = skipList.asScala
 
@@ -88,7 +88,7 @@ class AppendixMapEntrySpec extends TestBase {
       val readEntry = MapEntryReader.read[MapEntry[Slice[Byte], Segment]](Reader(slice)).assertGet
       readEntry shouldBe entry
 
-      val skipList = new ConcurrentSkipListMap[Slice[Byte], Segment](ordering)
+      val skipList = new ConcurrentSkipListMap[Slice[Byte], Segment](keyOrder)
       readEntry applyTo skipList
       skipList shouldBe empty
 
@@ -120,7 +120,7 @@ class AppendixMapEntrySpec extends TestBase {
       val readEntry = MapEntryReader.read[MapEntry[Slice[Byte], Segment]](Reader(slice)).assertGet
       readEntry shouldBe entry
 
-      val skipList = new ConcurrentSkipListMap[Slice[Byte], Segment](ordering)
+      val skipList = new ConcurrentSkipListMap[Slice[Byte], Segment](keyOrder)
       readEntry applyTo skipList
       val scalaSkipList = skipList.asScala
       assertSkipList()

@@ -20,7 +20,6 @@
 package swaydb.core.map.serializer
 
 import java.util.concurrent.ConcurrentSkipListMap
-
 import swaydb.core.TestBase
 import swaydb.core.data.{Memory, Value}
 import swaydb.core.io.reader.Reader
@@ -28,20 +27,19 @@ import swaydb.core.map.MapEntry
 import swaydb.core.util.TryUtil
 import swaydb.data.slice.Slice
 import swaydb.data.util.ByteSizeOf
-import swaydb.order.KeyOrder
 import swaydb.serializers.Default._
 import swaydb.serializers._
-
 import scala.collection.JavaConverters._
+import swaydb.data.order.KeyOrder
 
 class Level0MapEntrySpec extends TestBase {
 
-  override implicit val ordering = KeyOrder.default
+  override implicit val keyOrder = KeyOrder.default
 
   "MapEntryWriterLevel0 & MapEntryReaderLevel0" should {
 
     "write Put key value" in {
-      val put = Memory.Put(1, randomStringOption, randomDeadlineOption)
+      val put = Memory.put(1, randomStringOption, randomDeadlineOption)
 
       import LevelZeroMapEntryWriter.Level0PutWriter
       val addEntry = MapEntry.Put[Slice[Byte], Memory.Put](1, put)
@@ -57,7 +55,7 @@ class Level0MapEntrySpec extends TestBase {
       val readEntry = MapEntryReader.read[MapEntry[Slice[Byte], Memory.SegmentResponse]](Reader(slice)).assertGet
       readEntry shouldBe addEntry
 
-      val skipList = new ConcurrentSkipListMap[Slice[Byte], Memory.SegmentResponse](ordering)
+      val skipList = new ConcurrentSkipListMap[Slice[Byte], Memory.SegmentResponse](keyOrder)
       readEntry applyTo skipList
       val scalaSkipList = skipList.asScala
 
@@ -68,7 +66,7 @@ class Level0MapEntrySpec extends TestBase {
     }
 
     "write remove key-value" in {
-      val remove = Memory.Remove(1, randomDeadlineOption)
+      val remove = Memory.remove(1, randomDeadlineOption)
 
       import LevelZeroMapEntryWriter.Level0RemoveWriter
       val entry = MapEntry.Put[Slice[Byte], Memory.Remove](1, remove)
@@ -84,7 +82,7 @@ class Level0MapEntrySpec extends TestBase {
       val readEntry = MapEntryReader.read[MapEntry[Slice[Byte], Memory.SegmentResponse]](Reader(slice)).assertGet
       readEntry shouldBe entry
 
-      val skipList = new ConcurrentSkipListMap[Slice[Byte], Memory.SegmentResponse](ordering)
+      val skipList = new ConcurrentSkipListMap[Slice[Byte], Memory.SegmentResponse](keyOrder)
       readEntry applyTo skipList
       val scalaSkipList = skipList.asScala
 
@@ -95,7 +93,7 @@ class Level0MapEntrySpec extends TestBase {
     }
 
     "write Update key value" in {
-      val update = Memory.Update(1, randomStringOption, randomDeadlineOption)
+      val update = Memory.update(1, randomStringOption, randomDeadlineOption)
 
       import LevelZeroMapEntryWriter.Level0UpdateWriter
       val addEntry = MapEntry.Put[Slice[Byte], Memory.Update](1, update)
@@ -111,7 +109,7 @@ class Level0MapEntrySpec extends TestBase {
       val readEntry = MapEntryReader.read[MapEntry[Slice[Byte], Memory.SegmentResponse]](Reader(slice)).assertGet
       readEntry shouldBe addEntry
 
-      val skipList = new ConcurrentSkipListMap[Slice[Byte], Memory.SegmentResponse](ordering)
+      val skipList = new ConcurrentSkipListMap[Slice[Byte], Memory.SegmentResponse](keyOrder)
       readEntry applyTo skipList
       val scalaSkipList = skipList.asScala
 
@@ -138,7 +136,7 @@ class Level0MapEntrySpec extends TestBase {
         val readEntry = MapEntryReader.read[MapEntry[Slice[Byte], Memory.SegmentResponse]](Reader(slice)).assertGet
         readEntry shouldBe entry
 
-        val skipList = new ConcurrentSkipListMap[Slice[Byte], Memory.SegmentResponse](ordering)
+        val skipList = new ConcurrentSkipListMap[Slice[Byte], Memory.SegmentResponse](keyOrder)
         readEntry applyTo skipList
         val scalaSkipList = skipList.asScala
 
@@ -160,16 +158,16 @@ class Level0MapEntrySpec extends TestBase {
       import LevelZeroMapEntryWriter.Level0RemoveWriter
       import LevelZeroMapEntryWriter.Level0RangeWriter
 
-      val put1 = Memory.Put(1, randomStringOption, randomDeadlineOption)
-      val put2 = Memory.Put(2, randomStringOption, randomDeadlineOption)
-      val put3 = Memory.Put(3, randomStringOption, randomDeadlineOption)
-      val put4 = Memory.Put(4, randomStringOption, randomDeadlineOption)
-      val put5 = Memory.Put(5, randomStringOption, randomDeadlineOption)
+      val put1 = Memory.put(1, randomStringOption, randomDeadlineOption)
+      val put2 = Memory.put(2, randomStringOption, randomDeadlineOption)
+      val put3 = Memory.put(3, randomStringOption, randomDeadlineOption)
+      val put4 = Memory.put(4, randomStringOption, randomDeadlineOption)
+      val put5 = Memory.put(5, randomStringOption, randomDeadlineOption)
 
-      val remove1 = Memory.Remove(1, randomDeadlineOption)
-      val remove2 = Memory.Remove(2, randomDeadlineOption)
+      val remove1 = Memory.remove(1, randomDeadlineOption)
+      val remove2 = Memory.remove(2, randomDeadlineOption)
 
-      val update1 = Memory.Update(3, randomStringOption, randomDeadlineOption)
+      val update1 = Memory.update(3, randomStringOption, randomDeadlineOption)
 
       val range1 = randomRangeKeyValue(6, 7)
       val range2 = randomRangeKeyValue(7, 8)
@@ -202,7 +200,7 @@ class Level0MapEntrySpec extends TestBase {
       val readEntry = MapEntryReader.read[MapEntry[Slice[Byte], Memory.SegmentResponse]](Reader(slice)).assertGet
       readEntry shouldBe entry
 
-      val skipList = new ConcurrentSkipListMap[Slice[Byte], Memory.SegmentResponse](ordering)
+      val skipList = new ConcurrentSkipListMap[Slice[Byte], Memory.SegmentResponse](keyOrder)
       readEntry applyTo skipList
       val scalaSkipList = skipList.asScala
       assertSkipList()

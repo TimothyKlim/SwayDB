@@ -25,7 +25,7 @@ import swaydb.core.data.{Memory, Value}
 import swaydb.core.group.compression.data.KeyValueGroupingStrategyInternal
 import swaydb.core.util.Benchmark
 import swaydb.data.slice.Slice
-import swaydb.order.KeyOrder
+import swaydb.data.order.KeyOrder
 import swaydb.serializers.Default._
 import swaydb.serializers._
 
@@ -57,8 +57,8 @@ class Higher_FromSingleLevel_Spec3 extends Higher_FromSingleLevel_Spec {
 
 sealed trait Higher_FromSingleLevel_Spec extends TestBase with MockFactory with Benchmark {
 
-  override implicit val ordering: Ordering[Slice[Byte]] = KeyOrder.default
-  implicit override val groupingStrategy: Option[KeyValueGroupingStrategyInternal] = randomCompressionTypeOption(keyValuesCount)
+  override implicit val keyOrder: KeyOrder[Slice[Byte]] = KeyOrder.default
+  implicit override val groupingStrategy: Option[KeyValueGroupingStrategyInternal] = randomCompressionOption(keyValuesCount)
   val keyValuesCount = 100
 
   "Higher" should {
@@ -80,7 +80,7 @@ sealed trait Higher_FromSingleLevel_Spec extends TestBase with MockFactory with 
       //deadline or no deadline. A single Remove key-value with always return empty
       runThis(10.times) {
         assertOnLevel(
-          keyValues = Slice(Memory.Remove(randomIntMax(10), randomDeadlineOption)),
+          keyValues = Slice(Memory.Remove(randomIntMax(10), randomDeadlineOption, None)),
           assertion =
             level =>
               (0 to 10) foreach {
@@ -96,7 +96,7 @@ sealed trait Higher_FromSingleLevel_Spec extends TestBase with MockFactory with 
   "Higher Put" when {
     "Put None HasTimeLeft" in {
       assertOnLevel(
-        keyValues = Slice(Memory.Put(5, None, 10.seconds.fromNow)),
+        keyValues = Slice(Memory.put(5, None, 10.seconds.fromNow)),
         assertionWithKeyValues =
           (keyValues, level) => {
             (0 to 4) foreach { key => level.higher(key).assertGet shouldBe keyValues.head }
@@ -108,7 +108,7 @@ sealed trait Higher_FromSingleLevel_Spec extends TestBase with MockFactory with 
     "Put None Expired" in {
       runThis(10.times) {
         assertOnLevel(
-          keyValues = Slice(Memory.Put(randomIntMax(10), None, expiredDeadline())),
+          keyValues = Slice(Memory.put(randomIntMax(10), None, expiredDeadline())),
           assertion =
             level =>
               (0 to 10) foreach { key => level.higher(key).assertGetOpt shouldBe empty }
@@ -118,7 +118,7 @@ sealed trait Higher_FromSingleLevel_Spec extends TestBase with MockFactory with 
 
     "Put Some None" in {
       assertOnLevel(
-        keyValues = Slice(Memory.Put(5, 100)),
+        keyValues = Slice(Memory.put(5, 100)),
         assertionWithKeyValues =
           (keyValues, level) => {
             (0 to 4) foreach { key => level.higher(key).assertGet shouldBe keyValues.head }
@@ -129,7 +129,7 @@ sealed trait Higher_FromSingleLevel_Spec extends TestBase with MockFactory with 
 
     "Put Some HasTimeLeft" in {
       assertOnLevel(
-        keyValues = Slice(Memory.Put(5, 100, 10.seconds.fromNow)),
+        keyValues = Slice(Memory.put(5, 100, 10.seconds.fromNow)),
         assertionWithKeyValues =
           (keyValues, level) => {
             (0 to 4) foreach { key => level.higher(key).assertGet shouldBe keyValues.head }
@@ -140,7 +140,7 @@ sealed trait Higher_FromSingleLevel_Spec extends TestBase with MockFactory with 
 
     "Put Some Expired" in {
       assertOnLevel(
-        keyValues = Slice(Memory.Put(5, 100, expiredDeadline())),
+        keyValues = Slice(Memory.put(5, 100, expiredDeadline())),
         assertion =
           level =>
             (0 to 10) foreach { key => level.higher(key).assertGetOpt shouldBe empty }
@@ -151,7 +151,7 @@ sealed trait Higher_FromSingleLevel_Spec extends TestBase with MockFactory with 
   "Higher Update" when {
     "Update None HasTimeLeft" in {
       assertOnLevel(
-        keyValues = Slice(Memory.Update(5, None, 10.seconds.fromNow)),
+        keyValues = Slice(Memory.update(5, None, 10.seconds.fromNow)),
         assertion =
           level =>
             (0 to 10) foreach { key => level.higher(key).assertGetOpt shouldBe empty }
@@ -160,7 +160,7 @@ sealed trait Higher_FromSingleLevel_Spec extends TestBase with MockFactory with 
 
     "Update None Expired" in {
       assertOnLevel(
-        keyValues = Slice(Memory.Update(5, None, expiredDeadline())),
+        keyValues = Slice(Memory.update(5, None, expiredDeadline())),
         assertion =
           level =>
             (0 to 10) foreach { key => level.higher(key).assertGetOpt shouldBe empty }
@@ -169,7 +169,7 @@ sealed trait Higher_FromSingleLevel_Spec extends TestBase with MockFactory with 
 
     "Update Some None" in {
       assertOnLevel(
-        keyValues = Slice(Memory.Update(5, 100)),
+        keyValues = Slice(Memory.update(5, 100)),
         assertion =
           level =>
             (0 to 10) foreach { key => level.higher(key).assertGetOpt shouldBe empty }
@@ -178,7 +178,7 @@ sealed trait Higher_FromSingleLevel_Spec extends TestBase with MockFactory with 
 
     "Update Some HasTimeLeft" in {
       assertOnLevel(
-        keyValues = Slice(Memory.Update(5, 100, 10.seconds.fromNow)),
+        keyValues = Slice(Memory.update(5, 100, 10.seconds.fromNow)),
         assertion =
           level =>
             (0 to 10) foreach { key => level.higher(key).assertGetOpt shouldBe empty }
@@ -187,7 +187,7 @@ sealed trait Higher_FromSingleLevel_Spec extends TestBase with MockFactory with 
 
     "Update Some Expired" in {
       assertOnLevel(
-        keyValues = Slice(Memory.Update(5, 100, expiredDeadline())),
+        keyValues = Slice(Memory.update(5, 100, expiredDeadline())),
         assertion =
           level =>
             (0 to 10) foreach { key => level.higher(key).assertGetOpt shouldBe empty }

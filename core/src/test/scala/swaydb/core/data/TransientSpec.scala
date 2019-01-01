@@ -30,11 +30,11 @@ class TransientSpec extends WordSpec with Matchers with CommonAssertions {
 
   "Transient" should {
     "be iterable" in {
-      val one = Transient.Remove(1)
-      val two = Transient.Remove(2, 0.1, Some(one))
-      val three = Transient.Put(key = 3, value = Some(3), falsePositiveRate = 0.1, previousMayBe = Some(two))
-      val four = Transient.Remove(4, 0.1, Some(three))
-      val five = Transient.Put(key = 5, value = Some(5), falsePositiveRate = 0.1, previousMayBe = Some(four))
+      val one = Transient.remove(1)
+      val two = Transient.remove(2, 0.1, Some(one))
+      val three = Transient.put(key = 3, value = Some(3), falsePositiveRate = 0.1, previousMayBe = Some(two))
+      val four = Transient.remove(4, 0.1, Some(three))
+      val five = Transient.put(key = 5, value = Some(5), falsePositiveRate = 0.1, previousMayBe = Some(four))
 
       five.reverseIterator.toList should contain inOrderOnly(five, four, three, two, one)
     }

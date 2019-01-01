@@ -20,16 +20,19 @@
 package swaydb.core.map
 
 import java.util.concurrent.ConcurrentSkipListMap
-
 import com.typesafe.scalalogging.LazyLogging
 import swaydb.core.map.serializer.MapEntryWriter
-
 import scala.reflect.ClassTag
 import scala.util.{Success, Try}
+import swaydb.core.function.FunctionStore
+import swaydb.data.order.{KeyOrder, TimeOrder}
+import swaydb.data.slice.Slice
 
 private[map] class MemoryMap[K, V: ClassTag](val skipList: ConcurrentSkipListMap[K, V],
                                              flushOnOverflow: Boolean,
-                                             val fileSize: Long)(implicit ordering: Ordering[K],
+                                             val fileSize: Long)(implicit keyOrder: KeyOrder[K],
+                                                                 timeOrder: TimeOrder[Slice[Byte]],
+                                                                 functionStore: FunctionStore,
                                                                  skipListMerger: SkipListMerge[K, V],
                                                                  writer: MapEntryWriter[MapEntry.Put[K, V]]) extends Map[K, V] with LazyLogging {
 

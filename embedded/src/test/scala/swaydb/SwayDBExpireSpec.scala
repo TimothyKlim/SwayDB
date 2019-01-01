@@ -19,11 +19,9 @@
 
 package swaydb
 
-import swaydb.{Map, SwayDB}
+import scala.concurrent.duration._
 import swaydb.core.TestBase
 import swaydb.serializers.Default._
-
-import scala.concurrent.duration._
 
 class SwayDBExpireSpec0 extends SwayDBExpireSpec {
   val keyValueCount: Int = 1000
@@ -34,8 +32,6 @@ class SwayDBExpireSpec0 extends SwayDBExpireSpec {
 
 class SwayDBExpireSpec1 extends SwayDBExpireSpec {
 
-  import swaydb._
-
   val keyValueCount: Int = 1000
 
   override def newDB(minTimeLeftToUpdateExpiration: FiniteDuration): Map[Int, String] =
@@ -43,8 +39,6 @@ class SwayDBExpireSpec1 extends SwayDBExpireSpec {
 }
 
 class SwayDBExpireSpec2 extends SwayDBExpireSpec {
-
-  import swaydb._
 
   val keyValueCount: Int = 10000
 

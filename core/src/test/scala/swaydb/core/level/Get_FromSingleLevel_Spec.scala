@@ -25,7 +25,7 @@ import swaydb.core.data.{Memory, Value}
 import swaydb.core.group.compression.data.KeyValueGroupingStrategyInternal
 import swaydb.core.util.Benchmark
 import swaydb.data.slice.Slice
-import swaydb.order.KeyOrder
+import swaydb.data.order.KeyOrder
 import swaydb.serializers.Default._
 import swaydb.serializers._
 
@@ -57,8 +57,8 @@ class Get_FromSingleLevel_Spec3 extends Get_FromSingleLevel_Spec {
 
 sealed trait Get_FromSingleLevel_Spec extends TestBase with MockFactory with Benchmark {
 
-  override implicit val ordering: Ordering[Slice[Byte]] = KeyOrder.default
-  implicit override val groupingStrategy: Option[KeyValueGroupingStrategyInternal] = randomCompressionTypeOption(keyValuesCount)
+  override implicit val keyOrder: KeyOrder[Slice[Byte]] = KeyOrder.default
+  implicit override val groupingStrategy: Option[KeyValueGroupingStrategyInternal] = randomCompressionOption(keyValuesCount)
   val keyValuesCount = 100
 
   "Get" should {
@@ -78,21 +78,21 @@ sealed trait Get_FromSingleLevel_Spec extends TestBase with MockFactory with Ben
   "Getting Remove" when {
     "Remove None" in {
       assertOnLevel(
-        keyValues = Slice(Memory.Remove(1)),
+        keyValues = Slice(Memory.remove(1)),
         assertion = _.get(1).assertGetOpt shouldBe empty
       )
     }
 
     "Remove HasTimeLeft" in {
       assertOnLevel(
-        keyValues = Slice(Memory.Remove(1, 10.seconds.fromNow)),
+        keyValues = Slice(Memory.remove(1, 10.seconds.fromNow)),
         assertion = _.get(1).assertGetOpt shouldBe empty
       )
     }
 
     "Remove HasNoTimeLeft" in {
       assertOnLevel(
-        keyValues = Slice(Memory.Remove(1, expiredDeadline())),
+        keyValues = Slice(Memory.remove(1, expiredDeadline())),
         assertion = _.get(1).assertGetOpt shouldBe empty
       )
     }
@@ -101,7 +101,7 @@ sealed trait Get_FromSingleLevel_Spec extends TestBase with MockFactory with Ben
   "Getting Put" when {
     "Put None HasTimeLeft" in {
       assertOnLevel(
-        keyValues = Slice(Memory.Put(1, None, 10.seconds.fromNow)),
+        keyValues = Slice(Memory.put(1, None, 10.seconds.fromNow)),
         assertionWithKeyValues =
           (keyValues, level) =>
             level.get(keyValues.head.key).assertGet shouldBe keyValues.head
@@ -110,14 +110,14 @@ sealed trait Get_FromSingleLevel_Spec extends TestBase with MockFactory with Ben
 
     "Put None Expired" in {
       assertOnLevel(
-        keyValues = Slice(Memory.Put(1, None, expiredDeadline())),
+        keyValues = Slice(Memory.put(1, None, expiredDeadline())),
         assertion = _.get(1).assertGetOpt shouldBe empty
       )
     }
 
     "Put Some None" in {
       assertOnLevel(
-        keyValues = Slice(Memory.Put(1, 100)),
+        keyValues = Slice(Memory.put(1, 100)),
         assertionWithKeyValues =
           (keyValues, level) =>
             level.get(keyValues.head.key).assertGet shouldBe keyValues.head
@@ -126,7 +126,7 @@ sealed trait Get_FromSingleLevel_Spec extends TestBase with MockFactory with Ben
 
     "Put Some HasTimeLeft" in {
       assertOnLevel(
-        keyValues = Slice(Memory.Put(1, 100, 10.seconds.fromNow)),
+        keyValues = Slice(Memory.put(1, 100, 10.seconds.fromNow)),
         assertionWithKeyValues =
           (keyValues, level) =>
             level.get(keyValues.head.key).assertGet shouldBe keyValues.head
@@ -135,7 +135,7 @@ sealed trait Get_FromSingleLevel_Spec extends TestBase with MockFactory with Ben
 
     "Put Some Expired" in {
       assertOnLevel(
-        keyValues = Slice(Memory.Put(1, 100, expiredDeadline())),
+        keyValues = Slice(Memory.put(1, 100, expiredDeadline())),
         assertion = _.get(1).assertGetOpt shouldBe empty
       )
     }
@@ -144,35 +144,35 @@ sealed trait Get_FromSingleLevel_Spec extends TestBase with MockFactory with Ben
   "Getting Update" when {
     "Update None HasTimeLeft" in {
       assertOnLevel(
-        keyValues = Slice(Memory.Update(1, None, 10.seconds.fromNow)),
+        keyValues = Slice(Memory.update(1, None, 10.seconds.fromNow)),
         assertion = _.get(1).assertGetOpt shouldBe empty
       )
     }
 
     "Update None Expired" in {
       assertOnLevel(
-        keyValues = Slice(Memory.Update(1, None, expiredDeadline())),
+        keyValues = Slice(Memory.update(1, None, expiredDeadline())),
         assertion = _.get(1).assertGetOpt shouldBe empty
       )
     }
 
     "Update Some None" in {
       assertOnLevel(
-        keyValues = Slice(Memory.Update(1, 100)),
+        keyValues = Slice(Memory.update(1, 100)),
         assertion = _.get(1).assertGetOpt shouldBe empty
       )
     }
 
     "Update Some HasTimeLeft" in {
       assertOnLevel(
-        keyValues = Slice(Memory.Update(1, 100, 10.seconds.fromNow)),
+        keyValues = Slice(Memory.update(1, 100, 10.seconds.fromNow)),
         assertion = _.get(1).assertGetOpt shouldBe empty
       )
     }
 
     "Update Some Expired" in {
       assertOnLevel(
-        keyValues = Slice(Memory.Update(1, 100, expiredDeadline())),
+        keyValues = Slice(Memory.update(1, 100, expiredDeadline())),
         assertion = _.get(1).assertGetOpt shouldBe empty
       )
     }

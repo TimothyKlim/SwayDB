@@ -21,21 +21,39 @@ package swaydb.core.merge
 
 import org.scalatest.{Matchers, WordSpec}
 import swaydb.core.CommonAssertions
-import swaydb.core.data.Memory
+import swaydb.core.data.{Memory, Time}
 import swaydb.serializers.Default._
 import swaydb.serializers._
 
 class KeyValueMerger5_Put_Spec extends WordSpec with Matchers with CommonAssertions {
 
-  "Merging Put in any other randomly selected key-value" should {
+  "Merging Put in any other older randomly selected key-value" should {
     "always return the new put overwriting the old key-value" in {
 
-      (1 to 1000) foreach {
-        i =>
-          val newKeyValue = Memory.Put(i, randomStringOption, randomDeadlineOption)
-          val oldKeyValue = randomFixedKeyValue(i)
+      runThis(100.times) {
+        val key = randomStringOption
 
-          (newKeyValue, oldKeyValue).merge shouldBe newKeyValue
+        val newKeyValue = Memory.put(key, randomStringOption, randomDeadlineOption, randomNextTimeOption)
+
+        val oldKeyValue = randomFixedKeyValue(key = key, time = Some(previousTime))
+
+        (newKeyValue, oldKeyValue).merge shouldBe newKeyValue
+      }
+    }
+  }
+
+  "Merging Put in any other newer randomly selected key-value" should {
+    "always return the old key-value" in {
+      runThis(100.times) {
+        val key = randomStringOption
+
+        //new but has older time than oldKeyValue
+        val newKeyValue = Memory.Put(key, randomStringOption, randomDeadlineOption, Some(Time(Long.MinValue)))
+
+        //oldKeyValue but it has a newer time.
+        val oldKeyValue = randomFixedKeyValue(key = key, time = Some(nextTime))
+
+        (newKeyValue, oldKeyValue).merge shouldBe oldKeyValue
       }
     }
   }

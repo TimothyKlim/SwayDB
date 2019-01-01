@@ -20,16 +20,15 @@
 package swaydb.core.level.zero
 
 import java.util.concurrent.atomic.AtomicBoolean
-
 import com.typesafe.scalalogging.LazyLogging
 import swaydb.core.actor.{Actor, ActorRef}
 import swaydb.core.level.LevelException.ContainsOverlappingBusySegments
 import swaydb.core.level.actor.LevelCommand._
 import swaydb.core.level.actor.{LevelZeroAPI, LevelZeroCommand}
 import swaydb.data.slice.Slice
-
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}
+import swaydb.data.order.KeyOrder
 
 /**
   * Actor that glues multiple Levels starts exchanging Segments based to push delay.
@@ -37,12 +36,12 @@ import scala.util.{Failure, Success}
 private[core] object LevelZeroActor extends LazyLogging {
 
   def apply(zero: LevelZero)(implicit ec: ExecutionContext,
-                             ordering: Ordering[Slice[Byte]]): LevelZeroActor =
+                             keyOrder: KeyOrder[Slice[Byte]]): LevelZeroActor =
     new LevelZeroActor(zero)
 }
 
 private[core] class LevelZeroActor(zero: LevelZero)(implicit ec: ExecutionContext,
-                                                    ordering: Ordering[Slice[Byte]]) extends LazyLogging {
+                                                    keyOrder: KeyOrder[Slice[Byte]]) extends LazyLogging {
 
   private def nextLevel = zero.nextLevel
 

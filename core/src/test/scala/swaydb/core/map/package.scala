@@ -22,17 +22,19 @@ package swaydb.core
 import swaydb.core.data.Memory
 import swaydb.core.map.serializer.{MapEntryReader, MapEntryWriter}
 import swaydb.data.slice.Slice
-
 import scala.util.Random
 import swaydb.data.util.StorageUnits._
-
 import scala.concurrent.ExecutionContext
+import swaydb.core.function.FunctionStore
+import swaydb.data.order.{KeyOrder, TimeOrder}
 
 package object map extends TryAssert {
 
   //cannot be added to TestBase because PersistentMap cannot leave the map package.
   implicit class ReopenMap(map: PersistentMap[Slice[Byte], Memory.SegmentResponse]) {
-    def reopen(implicit ordering: Ordering[Slice[Byte]],
+    def reopen(implicit keyOrder: KeyOrder[Slice[Byte]],
+               timeOrder: TimeOrder[Slice[Byte]],
+               functionStore: FunctionStore,
                ec: ExecutionContext,
                writer: MapEntryWriter[MapEntry.Put[Slice[Byte], Memory.SegmentResponse]],
                reader: MapEntryReader[MapEntry[Slice[Byte], Memory.SegmentResponse]],

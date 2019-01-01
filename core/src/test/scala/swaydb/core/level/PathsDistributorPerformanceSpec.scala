@@ -24,13 +24,13 @@ import swaydb.core.io.file.IO
 import swaydb.core.segment.Segment
 import swaydb.core.util.Benchmark
 import swaydb.data.config.Dir
-import swaydb.order.KeyOrder
+import swaydb.data.order.KeyOrder
 
 import scala.util.Random
 
 class PathsDistributorPerformanceSpec extends TestBase with Benchmark {
 
-  override implicit val ordering = KeyOrder.default
+  override implicit val keyOrder = KeyOrder.default
 
   "PathsDistributorPerformanceSpec" in {
     val path = createNextLevelPath

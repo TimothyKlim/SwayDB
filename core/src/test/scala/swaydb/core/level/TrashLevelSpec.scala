@@ -29,7 +29,7 @@ import swaydb.core.segment.Segment
 import swaydb.core.util.Delay
 import swaydb.data.compaction.Throttle
 import swaydb.data.slice.Slice
-import swaydb.order.KeyOrder
+import swaydb.data.order.KeyOrder
 import swaydb.data.util.StorageUnits._
 
 import scala.concurrent.duration._
@@ -60,7 +60,7 @@ class TrashLevelSpec3 extends TrashLevelSpec {
 
 sealed trait TrashLevelSpec extends TestBase with MockFactory with PrivateMethodTester {
 
-  override implicit val ordering: Ordering[Slice[Byte]] = KeyOrder.default
+  override implicit val keyOrder: KeyOrder[Slice[Byte]] = KeyOrder.default
   val keyValuesCount = 100
 
   //  override def deleteFiles: Boolean = false
@@ -70,7 +70,7 @@ sealed trait TrashLevelSpec extends TestBase with MockFactory with PrivateMethod
       val level = TestLevel(nextLevel = Some(TrashLevel), throttle = (_) => Throttle(1.seconds, 10))
 
       val replyTo = TestActor[PushSegmentsResponse]()
-      val segments = Seq(TestSegment(randomIntKeyValues(keyValuesCount)).assertGet, TestSegment(randomIntKeyStringValues(keyValuesCount)).assertGet)
+      val segments = Seq(TestSegment(randomKeyValues(keyValuesCount)).assertGet, TestSegment(randomIntKeyStringValues(keyValuesCount)).assertGet)
       level ! PushSegments(segments, replyTo)
       //segments successfully pushed
       replyTo.getMessage(10.seconds).result.assertGet

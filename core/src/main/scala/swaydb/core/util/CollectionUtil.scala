@@ -19,6 +19,7 @@
 
 package swaydb.core.util
 
+import scala.collection.mutable.ListBuffer
 import scala.reflect.ClassTag
 
 object CollectionUtil {
@@ -45,6 +46,45 @@ object CollectionUtil {
           !continue
       }
       result
+    }
+
+  }
+
+  sealed trait MergeResult[T]
+  object MergeResult {
+    case class Merged[T](result: T) extends MergeResult[T]
+    case class Overwrite[T](result: T) extends MergeResult[T]
+    case class UnMerged[T](left: T, right: T) extends MergeResult[T]
+  }
+
+  implicit class ArrayImplicit[T: ClassTag](input: Array[T]) {
+    def foldCollapse(startIndex: Int)(f: (T, T) => MergeResult[T]): Array[T] = {
+      val output = ListBuffer.empty[T]
+      var index = startIndex
+
+      while (index < input.length) {
+        if (index + 1 >= input.length) {
+          //End! No items to collapse
+          //          output += input(index)
+          index += 1
+        } else {
+          //(1, 2), (3, 4), (5, 6) ...
+          val leftInput = input(index)
+          val rightInput = input(index + 1)
+          f(leftInput, rightInput) match {
+            case MergeResult.Merged(result) =>
+              output :+ result
+              index += 1
+            case MergeResult.Overwrite(result) =>
+              output.clear()
+              output :+ result
+            case MergeResult.UnMerged(left, right) =>
+
+          }
+
+        }
+      }
+      ???
     }
   }
 }

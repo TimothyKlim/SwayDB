@@ -19,15 +19,13 @@
 
 package swaydb.core.finders
 
-import java.util.concurrent.ConcurrentSkipListMap
-
-import swaydb.core.data.KeyValue
-import swaydb.core.segment.merge.KeyValueMerger
-import swaydb.data.slice.Slice
-
 import scala.annotation.tailrec
-import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
+import swaydb.core.data.{KeyValue, Value}
+import swaydb.core.function.FunctionStore
+import swaydb.core.merge.KeyValueMerger
+import swaydb.data.order.{KeyOrder, TimeOrder}
+import swaydb.data.slice.Slice
 
 object Higher {
 
@@ -37,9 +35,11 @@ object Higher {
   def apply(key: Slice[Byte],
             higherFromCurrentLevel: Slice[Byte] => Try[Option[KeyValue.ReadOnly]],
             get: Slice[Byte] => Try[Option[KeyValue.ReadOnly.Put]],
-            higherInNextLevel: Slice[Byte] => Try[Option[KeyValue.ReadOnly.Put]])(implicit ordering: Ordering[Slice[Byte]]): Try[Option[KeyValue.ReadOnly.Put]] = {
+            higherInNextLevel: Slice[Byte] => Try[Option[KeyValue.ReadOnly.Put]])(implicit keyOrder: KeyOrder[Slice[Byte]],
+                                                                                  timeOrder: TimeOrder[Slice[Byte]],
+                                                                                  functionStore: FunctionStore): Try[Option[KeyValue.ReadOnly.Put]] = {
 
-    import ordering._
+    import keyOrder._
 
     //    println(s"${rootPath}: Higher for key: " + key.readInt())
     @tailrec
@@ -75,29 +75,35 @@ object Higher {
                 case current: KeyValue.ReadOnly.Range if key >= current.fromKey =>
                   current.fetchRangeValue match {
                     case Success(rangeValue) =>
-                      if (rangeValue.hasTimeLeft()) //if the current range is active fetch the highest from next Level and return highest from both Levels.
+                      if (Value.hasTimeLeft(rangeValue)) //if the current range is active fetch the highest from next Level and return highest from both Levels.
                         higherInNextLevel(key) match {
                           case Success(Some(next)) =>
                             //10->20       (input keys)
                             //10   -    20 (higher range)
                             //  11 -> 19   (higher possible keys from next)
                             if (next.key < current.toKey) //if the higher in next Level falls within the range
-                              KeyValueMerger.applyValue(rangeValue.toMemory(next.key), next, Duration.Zero) match {
-                                case Success(current) =>
-                                  //return applied value with next key-value as the current value.
-                                  Min(current, None) match {
-                                    case found @ Success(Some(_)) =>
-                                      found
+                              next.toValue() match {
+                                case Success(nextValue) =>
+                                  KeyValueMerger(Some(next.key), rangeValue, nextValue: Value.FromValue) match {
+                                    case Success(current) =>
+                                      //return applied value with next key-value as the current value.
+                                      Min(current.toMemory(next.key), None) match {
+                                        case found @ Success(Some(_)) =>
+                                          found
 
-                                    case Success(None) =>
-                                      higher(current.key) //current.key or next.key (either one! they both are the same here)
+                                        case Success(None) =>
+                                          higher(next.key) //current.key or next.key (either one! they both are the same here)
 
+                                        case Failure(exception) =>
+                                          Failure(exception)
+                                      }
                                     case Failure(exception) =>
                                       Failure(exception)
                                   }
                                 case Failure(exception) =>
                                   Failure(exception)
                               }
+
 
                             //10->20
                             //10 - 20
@@ -167,14 +173,20 @@ object Higher {
                           else if (next.key equiv current.fromKey)
                             current.fetchFromOrElseRangeValue match {
                               case Success(fromOrElseRangeValue) =>
-                                KeyValueMerger.applyValue(fromOrElseRangeValue.toMemory(current.fromKey), next, Duration.Zero) match {
-                                  case Success(current) =>
-                                    Min(current, None) match { //return applied value with next key-value as the current value.
-                                      case found @ Success(Some(_)) =>
-                                        found
+                                next.toValue() match {
+                                  case Success(nextValue) =>
+                                    KeyValueMerger(Some(current.fromKey), fromOrElseRangeValue, nextValue: Value.FromValue) match {
+                                      case Success(mergedCurrent) =>
+                                        Min(mergedCurrent.toMemory(current.fromKey), None) match { //return applied value with next key-value as the current value.
+                                          case found @ Success(Some(_)) =>
+                                            found
 
-                                      case Success(None) =>
-                                        higher(current.key) //current.key or next.key (either one! they both are the same here)
+                                          case Success(None) =>
+                                            higher(next.key) //current.key or next.key (either one! they both are the same here)
+
+                                          case Failure(exception) =>
+                                            Failure(exception)
+                                        }
 
                                       case Failure(exception) =>
                                         Failure(exception)
@@ -193,24 +205,29 @@ object Higher {
                           else if (next.key < current.toKey) //if the higher in next Level falls within the range.
                             current.fetchFromAndRangeValue match {
                               case Success((Some(fromValue), rangeValue)) => //if fromValue is set check if it qualifies as the next highest orElse return higher of fromKey
-                                Min(fromValue.toMemory(current.fromKey), None) match {
+                                Min(fromValue.toMemory(current.fromKey): KeyValue.ReadOnly.Fixed, None) match {
                                   case found @ Success(Some(_)) =>
                                     found
 
                                   case Success(None) =>
-                                    KeyValueMerger.applyValue(rangeValue.toMemory(next.key), next, Duration.Zero) match {
-                                      case Success(current) =>
-                                        Min(current, None) match { //return applied value with next key-value as the current value.
-                                          case found @ Success(Some(_)) =>
-                                            found
+                                    next.toValue() match {
+                                      case Success(nextValue) =>
+                                        KeyValueMerger(Some(next.key), rangeValue, nextValue: Value.FromValue) match {
+                                          case Success(currentValue) =>
+                                            Min(currentValue.toMemory(next.key), None) match { //return applied value with next key-value as the current value.
+                                              case found @ Success(Some(_)) =>
+                                                found
 
-                                          case Success(None) =>
-                                            higher(current.key)
+                                              case Success(None) =>
+                                                higher(current.key)
+
+                                              case Failure(exception) =>
+                                                Failure(exception)
+                                            }
 
                                           case Failure(exception) =>
                                             Failure(exception)
                                         }
-
                                       case Failure(exception) =>
                                         Failure(exception)
                                     }
@@ -220,22 +237,29 @@ object Higher {
                                 }
 
                               case Success((None, rangeValue)) => //if there is no frm key
-                                KeyValueMerger.applyValue(rangeValue.toMemory(next.key), next, Duration.Zero) match {
-                                  case Success(current) =>
-                                    Min(current, None) match { //return applied value with next key-value as the current value.
-                                      case found @ Success(Some(_)) =>
-                                        found
+                                next.toValue() match {
+                                  case Success(nextValue) =>
+                                    KeyValueMerger(Some(next.key), rangeValue, nextValue: Value.FromValue) match {
+                                      case Success(current) =>
+                                        Min(current.toMemory(next.key), None) match { //return applied value with next key-value as the current value.
+                                          case found @ Success(Some(_)) =>
+                                            found
 
-                                      case Success(None) =>
-                                        higher(current.key)
+                                          case Success(None) =>
+                                            higher(next.key)
+
+                                          case Failure(exception) =>
+                                            Failure(exception)
+                                        }
 
                                       case Failure(exception) =>
                                         Failure(exception)
                                     }
-
                                   case Failure(exception) =>
                                     Failure(exception)
                                 }
+
+
 
                               case Failure(exception) =>
                                 Failure(exception)
