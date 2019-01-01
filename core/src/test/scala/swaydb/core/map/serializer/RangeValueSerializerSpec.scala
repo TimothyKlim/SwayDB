@@ -32,25 +32,30 @@ class RangeValueSerializerSpec extends WordSpec with Matchers with TryAssert wit
 
   import RangeValueSerializers._
 
-  //also assert option Serializer
-  def doAssertOption(rangeValue: RangeValue, expectedId: RangeValueId) = {
-    val bytesRequired = RangeValueSerializer.bytesRequired(Option.empty[FromValue], rangeValue)(RangeValueSerializers.OptionRangeValueSerializer)
-//    rangeId shouldBe expectedId.id
-    val bytes = Slice.create[Byte](bytesRequired)
-    RangeValueSerializer.write(Option.empty[FromValue], rangeValue)(bytes)(RangeValueSerializers.OptionRangeValueSerializer)
-    RangeValueSerializer.read(bytes).assertGet shouldBe ((None, rangeValue))
-  }
-
   def doAssert[R <: RangeValue](rangeValue: R, expectedId: RangeValueId)(implicit serializer: RangeValueSerializer[Unit, R]) = {
     val bytesRequired = RangeValueSerializer.bytesRequired((), rangeValue)
-//    rangeId shouldBe expectedId.id
+    //    rangeId shouldBe expectedId.id
     val bytes = Slice.create[Byte](bytesRequired)
+
     RangeValueSerializer.write((), rangeValue)(bytes)
+    bytes.isFull shouldBe true
+
     RangeValueSerializer.read(bytes).assertGet shouldBe ((Option.empty[FromValue], rangeValue))
+
+    //also assert option Serializer
+    def doAssertOption(rangeValue: RangeValue, expectedId: RangeValueId) = {
+      val bytesRequired = RangeValueSerializer.bytesRequired(Option.empty[FromValue], rangeValue)(RangeValueSerializers.OptionRangeValueSerializer)
+      //    rangeId shouldBe expectedId.id
+      val bytes = Slice.create[Byte](bytesRequired)
+
+      RangeValueSerializer.write(Option.empty[FromValue], rangeValue)(bytes)(RangeValueSerializers.OptionRangeValueSerializer)
+      bytes.isFull shouldBe true
+
+      RangeValueSerializer.read(bytes).assertGet shouldBe ((None, rangeValue))
+    }
 
     doAssertOption(rangeValue, expectedId)
   }
-
 
   "Serialize Remove range" should {
 
@@ -85,7 +90,7 @@ class RangeValueSerializerSpec extends WordSpec with Matchers with TryAssert wit
   //also assert option Serializer
   def doAssertOption(fromValue: FromValue, rangeValue: RangeValue, expectedId: RangeValueId) = {
     val bytesRequired = RangeValueSerializer.bytesRequired(Option(fromValue), rangeValue)(RangeValueSerializers.OptionRangeValueSerializer)
-//    rangeId shouldBe expectedId.id
+    //    rangeId shouldBe expectedId.id
     val bytes = Slice.create[Byte](bytesRequired)
     RangeValueSerializer.write(Option(fromValue), rangeValue)(bytes)(RangeValueSerializers.OptionRangeValueSerializer)
     RangeValueSerializer.read(bytes).assertGet shouldBe ((Some(fromValue), rangeValue))
@@ -93,7 +98,7 @@ class RangeValueSerializerSpec extends WordSpec with Matchers with TryAssert wit
 
   def doAssert[F <: FromValue, R <: RangeValue](fromValue: F, rangeValue: R, expectedId: RangeValueId)(implicit serializer: RangeValueSerializer[F, R]) = {
     val bytesRequired = RangeValueSerializer.bytesRequired(fromValue, rangeValue)
-//    rangeId shouldBe expectedId.id
+    //    rangeId shouldBe expectedId.id
     val bytes = Slice.create[Byte](bytesRequired)
     RangeValueSerializer.write(fromValue, rangeValue)(bytes)
     RangeValueSerializer.read(bytes).assertGet shouldBe ((Some(fromValue), rangeValue))

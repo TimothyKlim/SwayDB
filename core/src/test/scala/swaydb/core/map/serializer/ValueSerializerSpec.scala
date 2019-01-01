@@ -20,101 +20,129 @@
 package swaydb.core.map.serializer
 
 import org.scalatest.{Matchers, WordSpec}
-import swaydb.core.{CommonAssertions, TryAssert}
 import swaydb.core.data.Value
+import swaydb.core.{CommonAssertions, TryAssert}
 import swaydb.data.slice.Slice
-import swaydb.serializers.Default._
 import swaydb.serializers._
-import scala.concurrent.duration._
+import swaydb.serializers.Default._
 
 class ValueSerializerSpec extends WordSpec with Matchers with TryAssert with CommonAssertions {
 
-  "Serialize Remove" should {
-
-    "Remove None" in {
-      val value = Value.Remove(None, randomNextTimeOption)
+  "Remove" in {
+    runThis(30.times) {
+      val value = Value.Remove(randomDeadlineOption, randomNextTimeOption)
       val bytes = Slice.create[Byte](ValueSerializer.bytesRequired(value))
 
       ValueSerializer.write(value)(bytes)
-      ValueSerializer.read[Value.Remove](bytes).assertGet shouldBe value
-    }
 
-    "Remove Some" in {
-      val value = Value.Remove(10.seconds.fromNow)
-      val bytes = Slice.create[Byte](ValueSerializer.bytesRequired(value))
+      bytes.isFull shouldBe true
 
-      ValueSerializer.write(value)(bytes)
       ValueSerializer.read[Value.Remove](bytes).assertGet shouldBe value
     }
   }
 
-  "Serialize Put" should {
-
-    "Put None None" in {
-      val value = Value.Put(None, None, randomNextTimeOption)
+  "Put" in {
+    runThis(30.times) {
+      val value = Value.Put(randomStringOption, randomDeadlineOption, randomNextTimeOption)
       val bytes = Slice.create[Byte](ValueSerializer.bytesRequired(value))
 
       ValueSerializer.write(value)(bytes)
-      ValueSerializer.read[Value.Put](bytes).assertGet shouldBe value
-    }
 
-    "Put Some None" in {
-      val value = Value.Put(1)
-      val bytes = Slice.create[Byte](ValueSerializer.bytesRequired(value))
+      bytes.isFull shouldBe true
 
-      ValueSerializer.write(value)(bytes)
-      ValueSerializer.read[Value.Put](bytes).assertGet shouldBe value
-    }
-
-    "Put None Some" in {
-      val value = Value.Put(None, Some(10.seconds.fromNow), randomNextTimeOption)
-      val bytes = Slice.create[Byte](ValueSerializer.bytesRequired(value))
-
-      ValueSerializer.write(value)(bytes)
-      ValueSerializer.read[Value.Put](bytes).assertGet shouldBe value
-    }
-
-    "Put Some Some" in {
-      val value = Value.Put(1, 10.seconds.fromNow)
-      val bytes = Slice.create[Byte](ValueSerializer.bytesRequired(value))
-
-      ValueSerializer.write(value)(bytes)
       ValueSerializer.read[Value.Put](bytes).assertGet shouldBe value
     }
   }
 
-  "Serialize Update" should {
-
-    "Update None None" in {
-      val value = Value.Update(None, None, randomNextTimeOption)
+  "Update" in {
+    runThis(30.times) {
+      val value = Value.Update(randomStringOption, randomDeadlineOption, randomNextTimeOption)
       val bytes = Slice.create[Byte](ValueSerializer.bytesRequired(value))
 
       ValueSerializer.write(value)(bytes)
+
+      bytes.isFull shouldBe true
+
       ValueSerializer.read[Value.Update](bytes).assertGet shouldBe value
     }
 
-    "Update Some None" in {
-      val value = Value.Update(1)
+  }
+
+  "Function" in {
+    runThis(30.times) {
+      val value = Value.Function(randomCharacters(randomIntMax(100)), randomNextTimeOption)
       val bytes = Slice.create[Byte](ValueSerializer.bytesRequired(value))
 
       ValueSerializer.write(value)(bytes)
-      ValueSerializer.read[Value.Update](bytes).assertGet shouldBe value
+
+      bytes.isFull shouldBe true
+
+      ValueSerializer.read[Value.Function](bytes).assertGet shouldBe value
     }
+  }
 
-    "Update None Some" in {
-      val value = Value.Update(None, Some(10.seconds.fromNow), randomNextTimeOption)
-      val bytes = Slice.create[Byte](ValueSerializer.bytesRequired(value))
+  "Apply" in {
+    runThis(30.times) {
+      val applies = randomApplies(randomIntMax(100) + 1)
+      val bytes = Slice.create[Byte](ValueSerializer.bytesRequired(applies))
 
-      ValueSerializer.write(value)(bytes)
-      ValueSerializer.read[Value.Update](bytes).assertGet shouldBe value
+      ValueSerializer.write(applies)(bytes)
+
+      bytes.isFull shouldBe true
+
+      ValueSerializer.read[Slice[Value.Apply]](bytes).assertGet shouldBe applies
     }
+  }
 
-    "Update Some Some" in {
-      val value = Value.Update(1, 10.seconds.fromNow)
-      val bytes = Slice.create[Byte](ValueSerializer.bytesRequired(value))
+  "PendingApply" in {
+    runThis(30.times) {
+      val pendingApply = Value.PendingApply(randomApplies(randomIntMax(100) + 1))
+      val bytes = Slice.create[Byte](ValueSerializer.bytesRequired(pendingApply))
 
-      ValueSerializer.write(value)(bytes)
-      ValueSerializer.read[Value.Update](bytes).assertGet shouldBe value
+      ValueSerializer.write(pendingApply)(bytes)
+
+      bytes.isFull shouldBe true
+
+      ValueSerializer.read[Value.PendingApply](bytes).assertGet shouldBe pendingApply
+    }
+  }
+
+  "SeqOfBytesSerializer" in {
+    runThis(30.times) {
+      val seqBytes = randomByteChunks(randomIntMax(100))
+      val bytes = Slice.create[Byte](ValueSerializer.bytesRequired(seqBytes))
+
+      ValueSerializer.write(seqBytes)(bytes)
+
+      bytes.isFull shouldBe true
+
+      ValueSerializer.read[Seq[Slice[Byte]]](bytes).assertGet shouldBe seqBytes
+    }
+  }
+
+  "TupleOfBytesSerializer" in {
+    runThis(30.times) {
+      val tuple = (randomBytesSlice(randomIntMax(100)), randomBytesSlice(randomIntMax(100)))
+      val bytes = Slice.create[Byte](ValueSerializer.bytesRequired(tuple))
+
+      ValueSerializer.write(tuple)(bytes)
+
+      bytes.isFull shouldBe true
+
+      ValueSerializer.read[(Slice[Byte], Slice[Byte])](bytes).assertGet shouldBe tuple
+    }
+  }
+
+  "TupleBytesAndOptionBytesSerializer" in {
+    runThis(30.times) {
+      val tuple = (randomBytesSlice(randomIntMax(100)), eitherOne(None, Some(randomBytesSlice(randomIntMax(100)))))
+      val bytes = Slice.create[Byte](ValueSerializer.bytesRequired(tuple))
+
+      ValueSerializer.write(tuple)(bytes)
+
+      bytes.isFull shouldBe true
+
+      ValueSerializer.read[(Slice[Byte], Option[Slice[Byte]])](bytes).assertGet shouldBe tuple
     }
   }
 

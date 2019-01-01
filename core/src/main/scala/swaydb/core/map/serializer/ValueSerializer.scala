@@ -53,50 +53,55 @@ object ValueSerializer {
           deadline.toDeadlineOption
     }
 
+  def readTime(reader: Reader): Try[Option[Time]] =
+    reader.readIntUnsigned() flatMap {
+      timeSize =>
+        if (timeSize == 0)
+          Success(None)
+        else
+          reader.read(timeSize) map (time => Some(Time(time)))
+    }
+
+  def readRemainingTime(reader: Reader): Try[Option[Time]] =
+    reader.readRemaining() map {
+      remaining =>
+        if (remaining.isEmpty)
+          None
+        else
+          Some(Time(remaining))
+    }
+
+  def readValue(reader: Reader): Try[Option[Slice[Byte]]] =
+    reader.readRemaining() map {
+      remaining =>
+        if (remaining.isEmpty)
+          None
+        else
+          Some(remaining)
+    }
+
   implicit object ValuePutSerializer extends ValueSerializer[Value.Put] {
 
     override def write(value: Value.Put, bytes: Slice[Byte]): Unit =
       bytes
-        .addIntUnsigned(value.value.map(_.size).getOrElse(0))
-        .addAll(value.value.getOrElse(Slice.emptyBytes))
         .addLongUnsigned(value.deadline.toNanos)
+        .addIntUnsigned(value.time.map(_.time.size).getOrElse(0))
+        .addAll(value.time.map(_.time).getOrElse(Slice.emptyBytes))
+        .addAll(value.value.getOrElse(Slice.emptyBytes))
 
     override def bytesRequired(value: Value.Put): Int =
-      Bytes.sizeOf(value.value.map(_.size).getOrElse(0)) +
-        value.value.map(_.size).getOrElse(0) +
-        Bytes.sizeOf(value.deadline.toNanos)
+      Bytes.sizeOf(value.deadline.toNanos) +
+        Bytes.sizeOf(value.time.map(_.time.size).getOrElse(0)) +
+        value.time.map(_.time.size).getOrElse(0) +
+        value.value.map(_.size).getOrElse(0)
 
     override def read(reader: Reader): Try[Value.Put] =
-      reader.readIntUnsigned() flatMap {
-        valueLength =>
-          if (valueLength == 0)
-            readDeadline(reader) map {
-              deadline =>
-                Value.Put(None, deadline)
-            }
-          else
-            reader.read(valueLength) flatMap {
-              value =>
-                readDeadline(reader) map {
-                  deadline =>
-                    Value.Put(Some(value), deadline)
-                }
-            }
-      }
-  }
-
-  implicit object ValueRemoveSerializer extends ValueSerializer[Value.Remove] {
-
-    override def write(value: Value.Remove, bytes: Slice[Byte]): Unit =
-      bytes.addLongUnsigned(value.deadline.toNanos)
-
-    override def bytesRequired(value: Value.Remove): Int =
-      Bytes.sizeOf(value.deadline.toNanos)
-
-    override def read(reader: Reader): Try[Value.Remove] =
-      readDeadline(reader) map {
-        deadline =>
-          Value.Remove(deadline)
+      for {
+        deadline <- readDeadline(reader)
+        time <- readTime(reader)
+        value <- readValue(reader)
+      } yield {
+        Value.Put(value, deadline, time)
       }
   }
 
@@ -104,31 +109,44 @@ object ValueSerializer {
 
     override def write(value: Value.Update, bytes: Slice[Byte]): Unit =
       bytes
-        .addIntUnsigned(value.value.map(_.size).getOrElse(0))
-        .addAll(value.value.getOrElse(Slice.emptyBytes))
         .addLongUnsigned(value.deadline.toNanos)
+        .addIntUnsigned(value.time.map(_.time.size).getOrElse(0))
+        .addAll(value.time.map(_.time).getOrElse(Slice.emptyBytes))
+        .addAll(value.value.getOrElse(Slice.emptyBytes))
 
     override def bytesRequired(value: Value.Update): Int =
-      Bytes.sizeOf(value.value.map(_.size).getOrElse(0)) +
-        value.value.map(_.size).getOrElse(0) +
-        Bytes.sizeOf(value.deadline.toNanos)
+      Bytes.sizeOf(value.deadline.toNanos) +
+        Bytes.sizeOf(value.time.map(_.time.size).getOrElse(0)) +
+        value.time.map(_.time.size).getOrElse(0) +
+        value.value.map(_.size).getOrElse(0)
 
     override def read(reader: Reader): Try[Value.Update] =
-      reader.readIntUnsigned() flatMap {
-        valueLength =>
-          if (valueLength == 0)
-            readDeadline(reader) map {
-              deadline =>
-                Value.Update(None, deadline)
-            }
-          else
-            reader.read(valueLength) flatMap {
-              value =>
-                readDeadline(reader) map {
-                  deadline =>
-                    Value.Update(Some(value), deadline)
-                }
-            }
+      for {
+        deadline <- readDeadline(reader)
+        time <- readTime(reader)
+        value <- readValue(reader)
+      } yield {
+        Value.Update(value, deadline, time)
+      }
+  }
+
+  implicit object ValueRemoveSerializer extends ValueSerializer[Value.Remove] {
+
+    override def write(value: Value.Remove, bytes: Slice[Byte]): Unit =
+      bytes
+        .addLongUnsigned(value.deadline.toNanos)
+        .addAll(value.time.map(_.time).getOrElse(Slice.emptyBytes))
+
+    override def bytesRequired(value: Value.Remove): Int =
+      Bytes.sizeOf(value.deadline.toNanos) +
+        value.time.map(_.time.size).getOrElse(0)
+
+    override def read(reader: Reader): Try[Value.Remove] =
+      for {
+        deadline <- readDeadline(reader)
+        time <- readRemainingTime(reader)
+      } yield {
+        Value.Remove(deadline, time)
       }
   }
 
@@ -146,31 +164,41 @@ object ValueSerializer {
       }
   }
 
-  implicit object ValueAppliesSerializer extends ValueSerializer[Slice[Value.Apply]] {
+  implicit object ValueSliceApplySerializer extends ValueSerializer[Slice[Value.Apply]] {
 
-    override def write(value: Slice[Value.Apply], bytes: Slice[Byte]): Unit = {
-      bytes.addIntUnsigned(value.size)
-
-      value foreach {
+    override def write(applies: Slice[Value.Apply], bytes: Slice[Byte]): Unit = {
+      bytes.addIntUnsigned(applies.size)
+      applies foreach {
         case value: Value.Update =>
-          ValueSerializer.write(value)(bytes.add(0.toByte))
+          val bytesRequired = ValueSerializer.bytesRequired(value)
+          ValueSerializer.write(value)(bytes.addIntUnsigned(0).addIntUnsigned(bytesRequired))
+
         case value: Value.Function =>
-          ValueSerializer.write(value)(bytes.add(1.toByte))
+          val bytesRequired = ValueSerializer.bytesRequired(value)
+          ValueSerializer.write(value)(bytes.addIntUnsigned(1).addIntUnsigned(bytesRequired))
+
         case value: Value.Remove =>
-          ValueSerializer.write(value)(bytes.add(2.toByte))
+          val bytesRequired = ValueSerializer.bytesRequired(value)
+          ValueSerializer.write(value)(bytes.addIntUnsigned(2).addIntUnsigned(bytesRequired))
       }
     }
 
     override def bytesRequired(value: Slice[Value.Apply]): Int =
+      //also add the total number of entries.
       value.foldLeft(Bytes.sizeOf(value.size)) {
         case (total, function) =>
           function match {
             case value: Value.Update =>
-              total + ValueSerializer.bytesRequired(value)
+              val bytesRequired = ValueSerializer.bytesRequired(value)
+              total + Bytes.sizeOf(0) + Bytes.sizeOf(bytesRequired) + bytesRequired
+
             case value: Value.Function =>
-              total + ValueSerializer.bytesRequired(value)
+              val bytesRequired = ValueSerializer.bytesRequired(value)
+              total + Bytes.sizeOf(1) + Bytes.sizeOf(bytesRequired) + bytesRequired
+
             case value: Value.Remove =>
-              total + ValueSerializer.bytesRequired(value)
+              val bytesRequired = ValueSerializer.bytesRequired(value)
+              total + Bytes.sizeOf(2) + Bytes.sizeOf(bytesRequired) + bytesRequired
           }
       }
 
@@ -179,34 +207,38 @@ object ValueSerializer {
         count =>
           reader.foldLeftTry(Slice.create[Value.Apply](count)) {
             case (applies, reader) =>
-              reader.get() flatMap {
+              reader.readIntUnsigned() flatMap {
                 id =>
-                  if (id == 0.toByte)
-                    ValueSerializer.read[Value.Update](reader) map {
-                      update =>
-                        applies add update
-                        applies
-                    }
-                  else if (id == 1.toByte)
-                    ValueSerializer.read[Value.Function](reader) map {
-                      update =>
-                        applies add update
-                        applies
-                    }
-                  else if (id == 2.toByte)
-                    ValueSerializer.read[Value.Remove](reader) map {
-                      update =>
-                        applies add update
-                        applies
-                    }
-                  else
-                    Failure(new Exception(s"Invalid id:$id"))
+                  reader.readIntUnsignedBytes() flatMap {
+                    bytes =>
+                      if (id == 0)
+                        ValueSerializer.read[Value.Update](Reader(bytes)) map {
+                          update =>
+                            applies add update
+                            applies
+                        }
+                      else if (id == 1)
+                        ValueSerializer.read[Value.Function](Reader(bytes)) map {
+                          update =>
+                            applies add update
+                            applies
+                        }
+                      else if (id == 2)
+                        ValueSerializer.read[Value.Remove](Reader(bytes)) map {
+                          update =>
+                            applies add update
+                            applies
+                        }
+                      else
+                        Failure(new Exception(s"Invalid id:$id"))
+                  }
+
               }
           }
       }
   }
 
-  implicit object ValueApplySerializer extends ValueSerializer[Value.PendingApply] {
+  implicit object ValuePendingApplySerializer extends ValueSerializer[Value.PendingApply] {
 
     override def write(value: Value.PendingApply, bytes: Slice[Byte]): Unit =
       ValueSerializer.write(value.applies)(bytes)

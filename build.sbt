@@ -12,6 +12,7 @@ val bloomFilterVersion = "0.11.0"
 val scalaLoggingVersion = "3.9.0"
 val scalaMockVersion = "4.1.0"
 val scalaTestVersion = "3.0.5"
+val scalaCheckVersion = "1.14.0"
 
 parallelExecution in ThisBuild := false
 
@@ -39,6 +40,7 @@ val testDependencies =
   Seq(
     "org.scalatest" %% "scalatest" % scalaTestVersion % Test,
     "org.scalamock" %% "scalamock" % scalaMockVersion % Test,
+    "org.scalacheck" %% "scalacheck" % scalaCheckVersion % Test,
     "ch.qos.logback" % "logback-classic" % logbackClassicVersion % Test
   )
 
