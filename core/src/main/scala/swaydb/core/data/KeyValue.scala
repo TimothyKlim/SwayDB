@@ -387,6 +387,8 @@ private[swaydb] object Memory {
   case class PendingApply(key: Slice[Byte],
                           applies: Slice[Value.Apply]) extends KeyValue.ReadOnly.PendingApply with Memory.Fixed {
 
+    def time = applies.lastOption.flatMap(_.time)
+
     override def indexEntryDeadline: Option[Deadline] = None
 
     override def getOrFetchApplies: Try[Slice[Value.Apply]] =

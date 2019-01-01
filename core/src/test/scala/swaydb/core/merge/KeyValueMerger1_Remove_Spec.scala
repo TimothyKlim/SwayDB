@@ -47,7 +47,7 @@ class KeyValueMerger1_Remove_Spec extends WordSpec with Matchers with CommonAsse
         val key = randomStringOption
 
         val newKeyValue = Memory.Remove(key, Some(randomDeadline()), randomNextTimeOption)
-        val oldKeyValue = randomFixedKeyValueNoPendingApply(key = key, time = Some(previousTime))
+        val oldKeyValue = randomFixedKeyValue(key = key, time = Some(previousTime), includePendingApply = false)
 
         val mergeResult = newKeyValue merge oldKeyValue
 
@@ -60,7 +60,7 @@ class KeyValueMerger1_Remove_Spec extends WordSpec with Matchers with CommonAsse
 
           case _: Memory.PendingApply =>
             //this is not tested here.
-            ???
+            throw new NotImplementedError("This is not tested here. See PendingApply test-cases")
 
           case oldKeyValue: Memory.Remove =>
             val expectedDeadline = if (oldKeyValue.deadline.isEmpty) None else newKeyValue.deadline

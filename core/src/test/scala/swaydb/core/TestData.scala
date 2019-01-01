@@ -27,7 +27,6 @@ import swaydb.core.data.Value.{FromValue, RangeValue}
 import swaydb.core.data._
 import swaydb.core.function.FunctionStore
 import swaydb.core.map.serializer.RangeValueSerializers._
-import swaydb.core.util.UUIDUtil
 import swaydb.data.slice.Slice
 import swaydb.serializers.Default._
 import swaydb.serializers._
@@ -36,7 +35,7 @@ trait TestData extends TryAssert {
   /**
     * Sequential time bytes generator.
     */
-  private val timeCount = new AtomicLong(Long.MaxValue / 2)
+  private val timeCount = new AtomicLong(10)
 
   implicit def functionStore: FunctionStore
 
@@ -69,10 +68,7 @@ trait TestData extends TryAssert {
     * Randomly decrement by a random number (minimum decremented by 1)
     */
   def previousTime: Time =
-    (1 to (randomIntMax(4) + 1)) map {
-      _ =>
-        Time(timeCount.decrementAndGet())
-    } head
+    Time(timeCount.decrementAndGet())
 
   def nextTime: Time =
     Time(timeCount.incrementAndGet())
@@ -91,7 +87,7 @@ trait TestData extends TryAssert {
                            deadline: Option[Deadline] = randomDeadlineOption): Memory.Remove =
     Memory.Remove(key, deadline, None)
 
-  def randomFunction() =
+  def randomRequiresKeyFunction(): SwayFunction.RequiresKey =
     if (Random.nextBoolean())
       SwayFunction.Key {
         _ =>
@@ -102,7 +98,7 @@ trait TestData extends TryAssert {
           else
             FunctionOutput.Update(randomStringOption, randomDeadlineOption)
       }
-    else
+    else if (Random.nextBoolean())
       SwayFunction.KeyValue {
         (_, oldValue) =>
           if (Random.nextBoolean())
@@ -112,55 +108,97 @@ trait TestData extends TryAssert {
           else
             FunctionOutput.Update(eitherOne(oldValue, randomStringOption), randomDeadlineOption)
       }
+    else if (Random.nextBoolean())
+      SwayFunction.KeyDeadline {
+        (_, _) =>
+          if (Random.nextBoolean())
+            FunctionOutput.Remove
+          else if (Random.nextBoolean())
+            FunctionOutput.Expire(randomDeadline())
+          else
+            FunctionOutput.Update(randomStringOption, randomDeadlineOption)
+      }
+    else
+      SwayFunction.KeyValueDeadline {
+        (_, _, _) =>
+          if (Random.nextBoolean())
+            FunctionOutput.Remove
+          else if (Random.nextBoolean())
+            FunctionOutput.Expire(randomDeadline())
+          else
+            FunctionOutput.Update(randomStringOption, randomDeadlineOption)
+      }
+
+  def randomValueOnlyFunction(): SwayFunction.RequiresValueOnly =
+    if (Random.nextBoolean())
+      SwayFunction.Value {
+        _ =>
+          if (Random.nextBoolean())
+            FunctionOutput.Remove
+          else if (Random.nextBoolean())
+            FunctionOutput.Expire(randomDeadline())
+          else
+            FunctionOutput.Update(randomStringOption, randomDeadlineOption)
+      }
+    else
+      SwayFunction.ValueDeadline {
+        (_, _) =>
+          if (Random.nextBoolean())
+            FunctionOutput.Remove
+          else if (Random.nextBoolean())
+            FunctionOutput.Expire(randomDeadline())
+          else
+            FunctionOutput.Update(randomStringOption, randomDeadlineOption)
+      }
+
+  def randomFunction(): SwayFunction =
+    if (Random.nextBoolean())
+      randomRequiresKeyFunction()
+    else
+      randomValueOnlyFunction()
 
   def randomFunctionId: Slice[Byte] = {
-    val functionId: Slice[Byte] = UUIDUtil.randomIdNoHyphen()
+    val functionId: Slice[Byte] = randomCharacters(randomIntMax(100) + 1)
     functionStore.put(functionId, randomFunction())
     functionId
   }
 
   def randomApply(value: Option[Slice[Byte]] = randomStringOption,
                   deadline: Option[Deadline] = randomDeadlineOption,
-                  time: Option[Time] = randomNextTimeOption) =
+                  time: Option[Time] = randomNextTimeOption,
+                  includeFunctions: Boolean = true) =
     if (Random.nextBoolean())
       Value.Remove(deadline, time)
-    else if (Random.nextBoolean())
-      Value.Update(value, deadline, time)
-    else
+    else if (includeFunctions && Random.nextBoolean())
       Value.Function(randomFunctionId, time)
+    else
+      Value.Update(value, deadline, time)
 
   def randomApplies(max: Int = 5,
                     value: Option[Slice[Byte]] = randomStringOption,
-                    deadline: Option[Deadline] = randomDeadlineOption): Slice[Value.Apply] =
+                    deadline: Option[Deadline] = randomDeadlineOption,
+                    includeFunctions: Boolean = true): Slice[Value.Apply] =
     Slice {
       (1 to (Random.nextInt(max) max 1)).map {
         _ =>
-          randomApply(value, deadline, Some(previousTime))
+          randomApply(value, deadline, Some(previousTime), includeFunctions)
       } toArray
     }
-
-  def randomFixedKeyValueNoPendingApply(key: Slice[Byte],
-                                        value: Option[Slice[Byte]] = randomStringOption,
-                                        deadline: Option[Deadline] = randomDeadlineOption,
-                                        time: Option[Time] = randomNextTimeOption): Memory.Fixed =
-    if (Random.nextBoolean())
-      Memory.Put(key, value, deadline, time)
-    else if (Random.nextBoolean())
-      Memory.Remove(key, deadline, time)
-    else
-      Memory.Update(key, value, deadline, time)
 
   def randomFixedKeyValue(key: Slice[Byte],
                           value: Option[Slice[Byte]] = randomStringOption,
                           deadline: Option[Deadline] = randomDeadlineOption,
                           time: Option[Time] = randomNextTimeOption,
-                          includePendingApply: Boolean = true): Memory.Fixed =
+                          includePendingApply: Boolean = true,
+                          includeFunctions: Boolean = true): Memory.Fixed =
     if (Random.nextBoolean())
-      randomFixedKeyValueNoPendingApply(key, value, deadline, time)
+      Memory.Put(key, value, deadline, time)
+    else if (Random.nextBoolean())
+      Memory.Remove(key, deadline, time)
     else if (includePendingApply && Random.nextBoolean())
-      Memory.PendingApply(key, randomApplies(10, value, deadline))
+      Memory.PendingApply(key, randomApplies(10, value, deadline, includeFunctions))
     else
-      randomFixedKeyValueNoPendingApply(key, value, deadline, time)
+      Memory.Update(key, value, deadline, time)
 
   def randomCompression(minCompressionPercentage: Double = Double.MinValue): CompressionInternal =
     CompressionInternal.random(minCompressionPercentage = minCompressionPercentage)

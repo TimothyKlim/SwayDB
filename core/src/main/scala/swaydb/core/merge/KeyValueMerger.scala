@@ -337,64 +337,61 @@ private[core] object KeyValueMerger {
     * Function
     */
   implicit object FunctionOnPut extends KeyValueMerger[Value.Function, Value.Put, Value.FromValue] {
-    implicit class ToFromValue(output: FunctionOutput) {
-      def toFromValue(oldDeadline: Option[Deadline]): Value.FromValue =
-        output match {
-          case FunctionOutput.Remove =>
-            output.toValue()
-
-          case _: FunctionOutput.Expire =>
-            output.toValue()
-
-          case FunctionOutput.Update(value, deadline) =>
-            Value.Put(value, deadline.orElse(oldDeadline))
-        }
-    }
-
     override def apply(key: Option[Slice[Byte]],
                        newKeyValue: Value.Function,
                        oldKeyValue: Value.Put)(implicit timeOrder: TimeOrder[Slice[Byte]],
-                                               functionStore: FunctionStore): Try[Value.FromValue] =
-      (newKeyValue, oldKeyValue) match {
-        case (Value.Function(function, _), oldKeyValue: Value.Put) =>
-          if (newKeyValue.time > oldKeyValue.time)
-            functionStore.get(function) match {
-              case Some(functionId) =>
-                functionId match {
-                  case SwayFunction.Value(f) =>
-                    Try(f(oldKeyValue.value).toFromValue(oldKeyValue.deadline))
+                                               functionStore: FunctionStore): Try[Value.FromValue] = {
 
-                  case SwayFunction.ValueDeadline(f) =>
-                    Try(f(oldKeyValue.value, oldKeyValue.deadline).toFromValue(oldKeyValue.deadline))
+      def applyOutput(output: FunctionOutput) =
+        output match {
+          case FunctionOutput.Remove =>
+            Value.Remove(None, newKeyValue.time)
 
-                  case SwayFunction.Key(f) =>
-                    key.map(key => Try(f(key).toFromValue(oldKeyValue.deadline))) getOrElse {
-                      MergeException.keyNotProvidedMergingIntoPutFailure
+          case FunctionOutput.Expire(deadline) =>
+            Value.Put(oldKeyValue.value, Some(deadline), newKeyValue.time)
+
+          case FunctionOutput.Update(value, deadline) =>
+            Value.Put(value, deadline.orElse(oldKeyValue.deadline), newKeyValue.time)
+        }
+
+      if (newKeyValue.time > oldKeyValue.time)
+        functionStore.get(newKeyValue.function) match {
+          case Some(functionId) =>
+            functionId match {
+              case SwayFunction.Value(f) =>
+                Try(applyOutput(f(oldKeyValue.value)))
+
+              case SwayFunction.ValueDeadline(f) =>
+                Try(applyOutput(f(oldKeyValue.value, oldKeyValue.deadline)))
+
+              case function: SwayFunction.RequiresKey =>
+                key match {
+                  case Some(key) =>
+                    function match {
+                      case SwayFunction.Key(f) =>
+                        Try(applyOutput(f(key)))
+
+                      case SwayFunction.KeyValue(f) =>
+                        Try(applyOutput(f(key, oldKeyValue.value)))
+
+                      case SwayFunction.KeyDeadline(f) =>
+                        Try(applyOutput(f(key, oldKeyValue.deadline)))
+
+                      case SwayFunction.KeyValueDeadline(f) =>
+                        Try(applyOutput(f(key, oldKeyValue.value, oldKeyValue.deadline)))
                     }
 
-                  case SwayFunction.KeyValue(f) =>
-                    key.map(key => Try(f(key, oldKeyValue.value).toFromValue(oldKeyValue.deadline))) getOrElse {
-                      MergeException.keyNotProvidedMergingIntoPutFailure
-                    }
-
-                  case SwayFunction.KeyDeadline(f) =>
-                    key.map(key => Try(f(key, oldKeyValue.deadline).toFromValue(oldKeyValue.deadline))) getOrElse {
-                      MergeException.keyNotProvidedMergingIntoPutFailure
-                    }
-
-                  case SwayFunction.KeyValueDeadline(f) =>
-                    key.map(key => Try(f(key, oldKeyValue.value, oldKeyValue.deadline).toFromValue(oldKeyValue.deadline))) getOrElse {
-                      MergeException.keyNotProvidedMergingIntoPutFailure
-                    }
+                  case None =>
+                    MergeException.keyNotProvidedMergingIntoPutFailure
                 }
-
-              case None =>
-                Failure(MergeException.FunctionNotFound(function))
             }
 
-          else
-            Success(oldKeyValue)
-      }
+          case None =>
+            Failure(MergeException.FunctionNotFound(newKeyValue.function))
+        }
+      else
+        Success(oldKeyValue)
+    }
   }
 
   implicit object FunctionOnUpdate extends KeyValueMerger[Value.Function, Value.Update, Value.RangeValue] {
@@ -409,28 +406,28 @@ private[core] object KeyValueMerger {
               case Some(functionId) =>
                 functionId match {
                   case SwayFunction.Value(f) =>
-                    Try(f(oldKeyValue.value).toValue())
+                    Try(f(oldKeyValue.value).toValue(newKeyValue.time))
 
                   case SwayFunction.ValueDeadline(f) =>
-                    Try(f(oldKeyValue.value, oldKeyValue.deadline).toValue())
+                    Try(f(oldKeyValue.value, oldKeyValue.deadline).toValue(newKeyValue.time))
 
                   case SwayFunction.Key(f) =>
-                    key.map(key => Try(f(key).toValue())) getOrElse {
+                    key.map(key => Try(f(key).toValue(newKeyValue.time))) getOrElse {
                       Success(Value.PendingApply(Slice(oldKeyValue, newKeyValue)))
                     }
 
                   case SwayFunction.KeyValue(f) =>
-                    key.map(key => Try(f(key, oldKeyValue.value).toValue())) getOrElse {
+                    key.map(key => Try(f(key, oldKeyValue.value).toValue(newKeyValue.time))) getOrElse {
                       Success(Value.PendingApply(Slice(oldKeyValue, newKeyValue)))
                     }
 
                   case SwayFunction.KeyDeadline(f) =>
-                    key.map(key => Try(f(key, oldKeyValue.deadline).toValue())) getOrElse {
+                    key.map(key => Try(f(key, oldKeyValue.deadline).toValue(newKeyValue.time))) getOrElse {
                       Success(Value.PendingApply(Slice(oldKeyValue, newKeyValue)))
                     }
 
                   case SwayFunction.KeyValueDeadline(f) =>
-                    key.map(key => Try(f(key, oldKeyValue.value, oldKeyValue.deadline).toValue())) getOrElse {
+                    key.map(key => Try(f(key, oldKeyValue.value, oldKeyValue.deadline).toValue(newKeyValue.time))) getOrElse {
                       Success(Value.PendingApply(Slice(oldKeyValue, newKeyValue)))
                     }
                 }
@@ -467,7 +464,7 @@ private[core] object KeyValueMerger {
                     Success(Value.PendingApply(Slice(oldKeyValue, newKeyValue)))
 
                   case SwayFunction.Key(f) =>
-                    key.map(key => Try(f(key).toValue())) getOrElse {
+                    key.map(key => Try(f(key).toValue(newKeyValue.time))) getOrElse {
                       Success(Value.PendingApply(Slice(oldKeyValue, newKeyValue)))
                     }
 
@@ -476,7 +473,7 @@ private[core] object KeyValueMerger {
                     Success(Value.PendingApply(Slice(oldKeyValue, newKeyValue)))
 
                   case SwayFunction.KeyDeadline(f) =>
-                    key.map(key => Try(f(key, oldKeyValue.deadline).toValue())) getOrElse {
+                    key.map(key => Try(f(key, oldKeyValue.deadline).toValue(newKeyValue.time))) getOrElse {
                       Success(Value.PendingApply(Slice(oldKeyValue, newKeyValue)))
                     }
 
@@ -558,7 +555,11 @@ private[core] object KeyValueMerger {
 
                 //if it returned a single key-value drop and append the new merged result.
                 case result: Value.Apply =>
-                  Success(newKeyValue.copy(applies = newKeyValue.applies.dropRight(1) ++ Slice(result)))
+                  //if applies only have 1 key-value left, simple return the end return instead of wrapping it into PendingApply
+                  if (newKeyValue.applies.size == 1)
+                    Success(result)
+                  else
+                    Success(newKeyValue.copy(applies = newKeyValue.applies.dropRight(1) ++ Slice(result)))
               }
 
             case None =>

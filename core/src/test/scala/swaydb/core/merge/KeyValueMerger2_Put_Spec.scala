@@ -25,7 +25,7 @@ import swaydb.core.data.{Memory, Time}
 import swaydb.serializers.Default._
 import swaydb.serializers._
 
-class KeyValueMerger5_Put_Spec extends WordSpec with Matchers with CommonAssertions {
+class KeyValueMerger2_Put_Spec extends WordSpec with Matchers with CommonAssertions {
 
   "Merging Put in any other older randomly selected key-value" should {
     "always return the new put overwriting the old key-value" in {
